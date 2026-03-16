@@ -6,7 +6,7 @@ it('sends events via inline transport', function () {
     // We test that InlineTransport doesn't throw on send
     // In a real test we'd mock Guzzle, but here we verify the class works
     $transport = new InlineTransport(
-        endpoint: 'http://localhost:9999/api/ingest',
+        baseUrl: 'http://localhost:9999',
         token: 'test-token',
     );
 
@@ -21,7 +21,7 @@ it('sends events via inline transport', function () {
 
 it('does nothing with empty events', function () {
     $transport = new InlineTransport(
-        endpoint: 'http://localhost:9999/api/ingest',
+        baseUrl: 'http://localhost:9999',
         token: 'test-token',
     );
 

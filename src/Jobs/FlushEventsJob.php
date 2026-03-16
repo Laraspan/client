@@ -2,7 +2,6 @@
 
 namespace LaraSpan\Client\Jobs;
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -12,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use LaraSpan\Client\Transport\HttpSender;
 
 class FlushEventsJob implements ShouldBeUnique, ShouldQueue
 {
@@ -26,10 +26,32 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(): void
     {
-        $maxBatchSize = config('laraspan.buffer.max_batch_size', 500);
-        $endpoint = config('laraspan.endpoint');
-        $token = config('laraspan.token');
+        $events = $this->popEventsFromRedis();
 
+        if (empty($events)) {
+            return;
+        }
+
+        try {
+            HttpSender::fromConfig()->send($events);
+
+            $this->dispatchNextIfNeeded();
+        } catch (GuzzleException $e) {
+            Log::warning('LaraSpan: Failed to flush events to server, re-queuing.', [
+                'error' => $e->getMessage(),
+                'event_count' => count($events),
+            ]);
+
+            $this->reQueueEvents($events);
+
+            throw $e;
+        }
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    protected function popEventsFromRedis(): array
+    {
+        $maxBatchSize = config('laraspan.buffer.max_batch_size', 500);
         $events = [];
 
         for ($i = 0; $i < $maxBatchSize; $i++) {
@@ -46,47 +68,22 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
             }
         }
 
-        if (empty($events)) {
-            return;
+        return $events;
+    }
+
+    protected function dispatchNextIfNeeded(): void
+    {
+        $remaining = (int) Redis::connection('default')->command('llen', ['laraspan:events']);
+
+        if ($remaining > 0) {
+            self::dispatch();
         }
+    }
 
-        try {
-            $payload = json_encode([
-                'token' => $token,
-                'sdk_version' => '1.0.0',
-                'events' => $events,
-            ]);
-
-            $compressed = gzencode($payload);
-
-            $client = new Client(['timeout' => 10]);
-
-            $client->post($endpoint, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Content-Encoding' => 'gzip',
-                    'Authorization' => 'Bearer '.$token,
-                ],
-                'body' => $compressed,
-            ]);
-
-            // If more events remain, dispatch another flush job
-            $remaining = (int) Redis::connection('default')->command('llen', ['laraspan:events']);
-
-            if ($remaining > 0) {
-                self::dispatch();
-            }
-        } catch (GuzzleException $e) {
-            Log::warning('LaraSpan: Failed to flush events to server, re-queuing.', [
-                'error' => $e->getMessage(),
-                'event_count' => count($events),
-            ]);
-
-            // Re-push events to Redis for retry
-            $encoded = array_map('json_encode', $events);
-            Redis::connection('default')->command('rpush', ['laraspan:events', ...$encoded]);
-
-            throw $e;
-        }
+    /** @param array<int, array<string, mixed>> $events */
+    protected function reQueueEvents(array $events): void
+    {
+        $encoded = array_map('json_encode', $events);
+        Redis::connection('default')->command('rpush', ['laraspan:events', ...$encoded]);
     }
 }

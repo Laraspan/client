@@ -21,7 +21,7 @@ class InstallCommand extends Command
         $this->components->info('LaraSpan client installed successfully!');
         $this->components->info('Next steps:');
         $this->line('  1. Set LARASPAN_TOKEN in your .env file');
-        $this->line('  2. Set LARASPAN_ENDPOINT to your LaraSpan server URL');
+        $this->line('  2. Set LARASPAN_URL to your LaraSpan server URL');
         $this->line('  3. Run `php artisan laraspan:test` to verify the connection');
 
         return self::SUCCESS;
@@ -41,7 +41,7 @@ class InstallCommand extends Command
             return;
         }
 
-        $stubs = "\n# LaraSpan Monitoring\nLARASPAN_TOKEN=\nLARASPAN_ENDPOINT=http://localhost:8080/api/ingest\nLARASPAN_TRANSPORT=queue\n";
+        $stubs = "\n# LaraSpan Monitoring\nLARASPAN_TOKEN=\nLARASPAN_URL=http://localhost:8080\nLARASPAN_TRANSPORT=queue\n";
 
         file_put_contents($path, $contents . $stubs);
 

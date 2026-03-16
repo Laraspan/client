@@ -7,7 +7,7 @@ it('runs the install command', function () {
 
 it('runs the test command and fails without a reachable server', function () {
     config()->set('laraspan.token', 'test-token');
-    config()->set('laraspan.endpoint', 'http://localhost:9999/api/ingest');
+    config()->set('laraspan.url', 'http://localhost:9999');
 
     $this->artisan('laraspan:test')
         ->assertFailed();

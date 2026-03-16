@@ -5,23 +5,32 @@ namespace LaraSpan\Client\Listeners;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use LaraSpan\Client\EventBuffer;
+use SplObjectStorage;
 
 class MailListener
 {
-    protected ?float $startTime = null;
+    protected SplObjectStorage $pendingMessages;
 
-    public function __construct(protected EventBuffer $buffer) {}
+    public function __construct(protected EventBuffer $buffer)
+    {
+        $this->pendingMessages = new SplObjectStorage;
+    }
 
     public function handleSending(MessageSending $event): void
     {
-        $this->startTime = microtime(true);
+        $this->pendingMessages[$event->message] = microtime(true);
     }
 
     public function handleSent(MessageSent $event): void
     {
-        $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
-        $this->startTime = null;
+        $startTime = null;
 
+        if ($this->pendingMessages->contains($event->message)) {
+            $startTime = $this->pendingMessages[$event->message];
+            $this->pendingMessages->detach($event->message);
+        }
+
+        $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
         $message = $event->message;
 
         $this->buffer->push([

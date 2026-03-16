@@ -2,9 +2,9 @@
 
 namespace LaraSpan\Client\Console\Commands;
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Console\Command;
+use LaraSpan\Client\Transport\HttpSender;
 
 class TestCommand extends Command
 {
@@ -14,7 +14,7 @@ class TestCommand extends Command
 
     public function handle(): int
     {
-        $endpoint = config('laraspan.endpoint');
+        $baseUrl = config('laraspan.url');
         $token = config('laraspan.token');
 
         if (empty($token)) {
@@ -23,42 +23,27 @@ class TestCommand extends Command
             return self::FAILURE;
         }
 
-        $this->components->info("Sending test event to {$endpoint}...");
+        $this->components->info("Sending test event to {$baseUrl}...");
 
-        $payload = json_encode([
-            'token' => $token,
-            'sdk_version' => '1.0.0',
-            'events' => [
-                [
-                    'type' => 'request',
-                    'occurred_at' => now()->toIso8601String(),
-                    'payload' => [
-                        'route' => 'laraspan/test',
-                        'method' => 'GET',
-                        'status_code' => 200,
-                        'duration_ms' => 0.1,
-                        'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
-                        'query_count' => 0,
-                        'request_id' => 'test-'.uniqid(),
-                        'is_slow' => false,
-                        'has_n_plus_one' => false,
-                    ],
-                ],
+        $testEvent = [
+            'type' => 'request',
+            'occurred_at' => now()->toIso8601String(),
+            'payload' => [
+                'route' => 'laraspan/test',
+                'method' => 'GET',
+                'status_code' => 200,
+                'duration_ms' => 0.1,
+                'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
+                'query_count' => 0,
+                'request_id' => 'test-'.uniqid(),
+                'is_slow' => false,
+                'has_n_plus_one' => false,
             ],
-        ]);
+        ];
 
         try {
-            $client = new Client(['timeout' => 10]);
-
-            $response = $client->post($endpoint, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer '.$token,
-                ],
-                'body' => $payload,
-            ]);
-
-            $statusCode = $response->getStatusCode();
+            $sender = new HttpSender($baseUrl, $token);
+            $statusCode = $sender->send([$testEvent], compress: false);
 
             $this->components->info("Server responded with status: {$statusCode}");
 

@@ -27,14 +27,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Server Endpoint
+    | Server URL
     |--------------------------------------------------------------------------
     |
-    | The URL of your LaraSpan server's ingest endpoint.
+    | The base URL of your LaraSpan server. All API paths (/api/ingest,
+    | /api/deploy) are derived from this automatically.
     |
     */
 
-    'endpoint' => env('LARASPAN_ENDPOINT', 'http://localhost:8080/api/ingest'),
+    'url' => env('LARASPAN_URL', 'http://localhost:8080'),
 
     /*
     |--------------------------------------------------------------------------

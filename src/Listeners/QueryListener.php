@@ -4,7 +4,7 @@ namespace LaraSpan\Client\Listeners;
 
 use Illuminate\Database\Events\QueryExecuted;
 use LaraSpan\Client\EventBuffer;
-use LaraSpan\Client\Support\MessageNormalizer;
+use LaraSpan\Client\Support\SqlNormalizer;
 
 class QueryListener
 {
@@ -12,7 +12,7 @@ class QueryListener
 
     public function handle(QueryExecuted $event): void
     {
-        $normalizedSql = MessageNormalizer::normalize($event->sql);
+        $normalizedSql = SqlNormalizer::normalize($event->sql);
         $this->buffer->trackQueryPattern($normalizedSql);
 
         $slowThreshold = config('laraspan.thresholds.slow_query_ms', 100);

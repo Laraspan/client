@@ -2,14 +2,13 @@
 
 namespace LaraSpan\Client\Transport;
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Log;
 
 class InlineTransport implements TransportInterface
 {
     public function __construct(
-        protected string $endpoint = '',
+        protected string $baseUrl = '',
         protected string $token = '',
     ) {}
 
@@ -21,24 +20,8 @@ class InlineTransport implements TransportInterface
         }
 
         try {
-            $payload = json_encode([
-                'token' => $this->token,
-                'sdk_version' => '1.0.0',
-                'events' => $events,
-            ]);
-
-            $compressed = gzencode($payload);
-
-            $client = new Client(['timeout' => 5]);
-
-            $client->post($this->endpoint, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Content-Encoding' => 'gzip',
-                    'Authorization' => 'Bearer '.$this->token,
-                ],
-                'body' => $compressed,
-            ]);
+            $sender = new HttpSender($this->baseUrl, $this->token, timeout: 5);
+            $sender->send($events);
         } catch (GuzzleException $e) {
             Log::warning('LaraSpan: Failed to send events inline.', [
                 'error' => $e->getMessage(),

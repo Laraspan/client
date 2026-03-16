@@ -18,7 +18,7 @@ abstract class TestCase extends BaseTestCase
     {
         $app['config']->set('laraspan.enabled', true);
         $app['config']->set('laraspan.token', 'test-token');
-        $app['config']->set('laraspan.endpoint', 'http://localhost:8080/api/ingest');
+        $app['config']->set('laraspan.url', 'http://localhost:8080');
         $app['config']->set('laraspan.transport', 'inline');
     }
 }

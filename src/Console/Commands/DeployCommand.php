@@ -2,8 +2,9 @@
 
 namespace LaraSpan\Client\Console\Commands;
 
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
+use LaraSpan\Client\Transport\HttpSender;
 
 class DeployCommand extends Command
 {
@@ -16,16 +17,14 @@ class DeployCommand extends Command
 
     public function handle(): int
     {
-        $endpoint = config('laraspan.endpoint', '');
+        $baseUrl = config('laraspan.url', '');
         $token = config('laraspan.token', '');
 
-        if (! $endpoint || ! $token) {
-            $this->error('LaraSpan is not configured. Set LARASPAN_ENDPOINT and LARASPAN_TOKEN.');
+        if (! $baseUrl || ! $token) {
+            $this->error('LaraSpan is not configured. Set LARASPAN_URL and LARASPAN_TOKEN.');
 
             return self::FAILURE;
         }
-
-        $deployUrl = str_replace('/api/ingest', '/api/deploy', $endpoint);
 
         $version = $this->option('version');
         if (! $version) {
@@ -39,23 +38,22 @@ class DeployCommand extends Command
 
         $this->info("Recording deployment v{$version}...");
 
-        $response = Http::withToken($token)
-            ->timeout(10)
-            ->post($deployUrl, [
+        try {
+            $sender = new HttpSender($baseUrl, $token);
+            $sender->deploy([
                 'version' => $version,
                 'commit' => $commit,
                 'deployer' => $deployer,
             ]);
 
-        if ($response->successful()) {
             $this->info('Deployment recorded successfully.');
 
             return self::SUCCESS;
+        } catch (GuzzleException $e) {
+            $this->error('Failed to record deployment: '.$e->getMessage());
+
+            return self::FAILURE;
         }
-
-        $this->error("Failed to record deployment: {$response->status()} {$response->body()}");
-
-        return self::FAILURE;
     }
 
     protected function detectCommit(): ?string

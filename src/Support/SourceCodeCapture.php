@@ -20,7 +20,7 @@ class SourceCodeCapture
             return null;
         }
 
-        $lines = @file($file, FILE_IGNORE_NEW_LINES);
+        $lines = file($file, FILE_IGNORE_NEW_LINES);
 
         if ($lines === false || empty($lines)) {
             return null;

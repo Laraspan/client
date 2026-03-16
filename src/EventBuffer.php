@@ -61,6 +61,7 @@ class EventBuffer
     {
         $events = $this->events;
         $this->events = [];
+        $this->context = [];
         $this->queryPatterns = [];
 
         return $events;

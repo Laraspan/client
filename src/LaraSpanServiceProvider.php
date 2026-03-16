@@ -66,7 +66,7 @@ class LaraSpanServiceProvider extends ServiceProvider
 
             if ($transport === 'inline') {
                 return new InlineTransport(
-                    endpoint: $app['config']->get('laraspan.endpoint', ''),
+                    baseUrl: $app['config']->get('laraspan.url', ''),
                     token: $app['config']->get('laraspan.token', ''),
                 );
             }

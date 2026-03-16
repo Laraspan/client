@@ -30,11 +30,7 @@ class QueueTransport implements TransportInterface
             if ($length >= $this->flushThreshold) {
                 FlushEventsJob::dispatch();
             }
-        } catch (RedisException $e) {
-            Log::warning('LaraSpan: Failed to buffer events to Redis.', [
-                'error' => $e->getMessage(),
-            ]);
-        } catch (\Exception $e) {
+        } catch (RedisException|\Exception $e) {
             Log::warning('LaraSpan: Failed to buffer events to Redis.', [
                 'error' => $e->getMessage(),
             ]);
