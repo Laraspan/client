@@ -6,30 +6,24 @@ use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Events\RequestSending;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use LaraSpan\Client\EventBuffer;
-use SplObjectStorage;
 
 class HttpClientListener
 {
-    protected SplObjectStorage $pendingRequests;
+    /** @var array<string, float> */
+    protected array $pendingRequests = [];
 
-    public function __construct(protected EventBuffer $buffer)
-    {
-        $this->pendingRequests = new SplObjectStorage;
-    }
+    public function __construct(protected EventBuffer $buffer) {}
 
     public function handleSending(RequestSending $event): void
     {
-        $this->pendingRequests[$event->request] = microtime(true);
+        $this->pendingRequests[$this->requestKey($event->request)] = microtime(true);
     }
 
     public function handleResponse(ResponseReceived $event): void
     {
-        $startTime = null;
-
-        if ($this->pendingRequests->offsetExists($event->request)) {
-            $startTime = $this->pendingRequests[$event->request];
-            $this->pendingRequests->offsetUnset($event->request);
-        }
+        $key = $this->requestKey($event->request);
+        $startTime = $this->pendingRequests[$key] ?? null;
+        unset($this->pendingRequests[$key]);
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
         $uri = $event->request->url();
@@ -52,12 +46,9 @@ class HttpClientListener
 
     public function handleFailed(ConnectionFailed $event): void
     {
-        $startTime = null;
-
-        if ($this->pendingRequests->offsetExists($event->request)) {
-            $startTime = $this->pendingRequests[$event->request];
-            $this->pendingRequests->offsetUnset($event->request);
-        }
+        $key = $this->requestKey($event->request);
+        $startTime = $this->pendingRequests[$key] ?? null;
+        unset($this->pendingRequests[$key]);
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
         $uri = $event->request->url();
@@ -76,5 +67,10 @@ class HttpClientListener
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
+    }
+
+    protected function requestKey(mixed $request): string
+    {
+        return $request->method() . ' ' . $request->url();
     }
 }

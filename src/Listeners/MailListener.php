@@ -5,30 +5,24 @@ namespace LaraSpan\Client\Listeners;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use LaraSpan\Client\EventBuffer;
-use SplObjectStorage;
 
 class MailListener
 {
-    protected SplObjectStorage $pendingMessages;
+    /** @var array<string, float> */
+    protected array $pendingMessages = [];
 
-    public function __construct(protected EventBuffer $buffer)
-    {
-        $this->pendingMessages = new SplObjectStorage;
-    }
+    public function __construct(protected EventBuffer $buffer) {}
 
     public function handleSending(MessageSending $event): void
     {
-        $this->pendingMessages[$event->message] = microtime(true);
+        $this->pendingMessages[$this->messageKey($event->message)] = microtime(true);
     }
 
     public function handleSent(MessageSent $event): void
     {
-        $startTime = null;
-
-        if ($this->pendingMessages->contains($event->message)) {
-            $startTime = $this->pendingMessages[$event->message];
-            $this->pendingMessages->detach($event->message);
-        }
+        $key = $this->messageKey($event->message);
+        $startTime = $this->pendingMessages[$key] ?? null;
+        unset($this->pendingMessages[$key]);
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
         $message = $event->message;
@@ -44,5 +38,10 @@ class MailListener
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
+    }
+
+    protected function messageKey(mixed $message): string
+    {
+        return $message->getSubject() . ':' . implode(',', array_keys($message->getTo() ?? []));
     }
 }
