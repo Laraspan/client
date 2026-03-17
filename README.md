@@ -1,9 +1,6 @@
 # LaraSpan Client
 
-[![Latest Version](https://img.shields.io/packagist/v/laraspan/client.svg)](https://packagist.org/packages/laraspan/client)
-[![License](https://img.shields.io/packagist/l/laraspan/client.svg)](https://packagist.org/packages/laraspan/client)
-
-Monitoring client for Laravel applications. Collects exceptions, requests, queries, jobs, and more — sends them to your self-hosted [LaraSpan](https://github.com/Laraspan) server.
+Monitoring client for Laravel applications. Collects exceptions, requests, queries, jobs, and more, then sends them to your self-hosted [LaraSpan](https://github.com/Laraspan) server.
 
 ## Requirements
 
@@ -26,7 +23,7 @@ LARASPAN_URL=https://laraspan.yourdomain.com
 LARASPAN_TRANSPORT=queue
 ```
 
-Get your API token from the LaraSpan dashboard under **Applications → New Application**.
+Get your API token from the LaraSpan dashboard under **Applications > New Application**.
 
 Verify the connection:
 
@@ -34,49 +31,51 @@ Verify the connection:
 php artisan laraspan:test
 ```
 
-## How It Works
+## How it works
 
 ```
 Request lifecycle
-  │
-  ├── Middleware records start time + user
-  ├── Listeners collect events in-memory (zero I/O)
-  └── terminate()
-        ├── Sample → Redact → Filter
-        └── RPUSH to Redis (<0.5ms)
-              │
-              └── FlushEventsJob (queue worker)
-                    └── Batch + gzip + POST → LaraSpan Server
+  |
+  |-- Middleware records start time + user
+  |-- Listeners collect events in-memory (zero I/O)
+  +-- terminate()
+        |-- Sample > Redact > Filter
+        +-- RPUSH to Redis (<0.5ms)
+              |
+              +-- FlushEventsJob (queue worker)
+                    +-- Batch + gzip + POST > LaraSpan Server
 ```
 
-- **Zero response time impact** — only a sub-millisecond Redis write on terminate
-- **Efficient batching** — one HTTP call handles events from hundreds of requests
-- **No extra processes** — uses your existing queue workers
-- **Works everywhere** — PHP-FPM, Octane, queue workers, CLI commands
+- **Zero response time impact.** Only a sub-millisecond Redis write on terminate.
+- **Efficient batching.** One HTTP call handles events from hundreds of requests.
+- **No extra processes.** Uses your existing queue workers.
+- **Works everywhere.** PHP-FPM, Octane, queue workers, CLI commands.
 
-## What Gets Monitored
+## What gets monitored
 
 | Monitor | Captures |
 |---------|----------|
-| **Exceptions** | Class, message, stack trace, source code, fingerprint for deduplication |
-| **Requests** | Route, method, status, duration, memory, query count, N+1 detection |
-| **Queries** | SQL, duration, connection, slow query flagging |
-| **Jobs** | Class, queue, duration, memory, status, failure details |
-| **Scheduler** | Command, duration, exit code |
-| **Cache** | Key, operation (hit/miss/write/forget), store |
-| **Mail** | Subject, recipients, duration |
-| **Notifications** | Channel, notifiable, notification class |
-| **HTTP Client** | Method, URL, status, duration |
-| **Commands** | Artisan command execution |
-| **Logs** | Log level, message, context |
+| Exceptions | Class, message, stack trace, source code, fingerprint for deduplication |
+| Requests | Route, method, status, duration, memory, query count, N+1 detection |
+| Queries | SQL, duration, connection, slow query flagging |
+| Jobs | Class, queue, duration, memory, status, failure details |
+| Scheduler | Command, duration, exit code |
+| Cache | Key, operation (hit/miss/write/forget), store |
+| Mail | Subject, recipients, duration |
+| Notifications | Channel, notifiable, notification class |
+| HTTP Client | Method, URL, status, duration |
+| Commands | Artisan command execution |
+| Logs | Log level, message, context |
 
 ## Configuration
 
-### Enable/Disable
+### Enable/disable
 
 ```env
-LARASPAN_ENABLED=false  # disable without removing the package
+LARASPAN_ENABLED=false
 ```
+
+Set to `false` to disable all monitoring without removing the package.
 
 ### Monitors
 
@@ -100,11 +99,11 @@ LARASPAN_ENABLED=false  # disable without removing the package
 ### Transport
 
 ```env
-LARASPAN_TRANSPORT=queue   # 'queue' (recommended) or 'inline'
+LARASPAN_TRANSPORT=queue
 ```
 
-- **queue** — events buffered in Redis, flushed by background job. Requires Redis + queue worker.
-- **inline** — events sent via HTTP on terminate. No Redis needed, but adds 5–50ms per request.
+- `queue` (recommended): Events buffered in Redis, flushed by background job. Requires Redis and a queue worker.
+- `inline`: Events sent via HTTP on terminate. No Redis needed, but adds 5-50ms per request.
 
 ### Buffer
 
@@ -143,7 +142,7 @@ Reduce event volume on high-traffic apps:
 
 Exceptions are always captured regardless of sampling rate.
 
-#### Per-Route Sampling
+#### Per-route sampling
 
 ```php
 use LaraSpan\Client\Middleware\Sample;
@@ -155,7 +154,7 @@ Route::get('/health', HealthController::class)
     ->middleware(Sample::never());   // never sample
 ```
 
-### Ignored Exceptions
+### Ignored exceptions
 
 ```php
 'ignore_exceptions' => [
@@ -177,7 +176,7 @@ Sensitive fields are replaced with `[REDACTED]` before leaving your application:
 ],
 ```
 
-### Capture Options
+### Capture options
 
 ```php
 'capture' => [
@@ -188,7 +187,7 @@ Sensitive fields are replaced with `[REDACTED]` before leaving your application:
 ],
 ```
 
-## Programmatic Control
+## Programmatic control
 
 ```php
 use LaraSpan\Client\LaraSpan;
@@ -207,7 +206,7 @@ LaraSpan::sample(0.5);    // 50%
 LaraSpan::dontSample();   // 0%
 ```
 
-## Multi-Tenant Applications
+## Multi-tenant applications
 
 Attach tenant context to all events:
 
@@ -218,16 +217,16 @@ app(\LaraSpan\Client\EventBuffer::class)->setContext([
 ]);
 ```
 
-## Artisan Commands
+## Artisan commands
 
 | Command | Description |
 |---------|-------------|
 | `laraspan:install` | Publish config and add env variables |
 | `laraspan:test` | Send a test event to verify connectivity |
 | `laraspan:flush` | Manually flush buffered events |
-| `laraspan:deploy --version=1.2.0` | Record a deployment (auto-detects commit & deployer) |
+| `laraspan:deploy --version=1.2.0` | Record a deployment (auto-detects commit and deployer) |
 
-## Local Development
+## Local development
 
 ```env
 LARASPAN_ENABLED=true
