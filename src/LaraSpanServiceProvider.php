@@ -44,6 +44,7 @@ use LaraSpan\Client\Listeners\SchedulerListener;
 use LaraSpan\Client\Support\EventFilter;
 use LaraSpan\Client\Support\Redactor;
 use LaraSpan\Client\Support\Sampler;
+use LaraSpan\Client\Support\SelfMonitoringGuard;
 use LaraSpan\Client\Transport\InlineTransport;
 use LaraSpan\Client\Transport\QueueTransport;
 use LaraSpan\Client\Transport\TransportInterface;
@@ -86,6 +87,13 @@ class LaraSpanServiceProvider extends ServiceProvider
 
         $this->app->singleton(EventFilter::class, function () {
             return new EventFilter;
+        });
+
+        $this->app->singleton(SelfMonitoringGuard::class, function ($app) {
+            return new SelfMonitoringGuard(
+                laraSpanUrl: rtrim($app['config']->get('laraspan.url', ''), '/'),
+                appUrl: rtrim($app['config']->get('app.url', ''), '/'),
+            );
         });
     }
 
@@ -185,7 +193,10 @@ class LaraSpanServiceProvider extends ServiceProvider
     protected function registerTerminatingCallback(): void
     {
         $this->app->terminating(function () {
-            if ($this->isSelfRequest()) {
+            /** @var SelfMonitoringGuard $guard */
+            $guard = $this->app->make(SelfMonitoringGuard::class);
+
+            if ($guard->isSelfRequest()) {
                 return;
             }
 
@@ -250,20 +261,13 @@ class LaraSpanServiceProvider extends ServiceProvider
             /** @var EventBuffer $buffer */
             $buffer = $this->app->make(EventBuffer::class);
             $buffer->reset();
+
+            /** @var SelfMonitoringGuard $guard */
+            $guard = $this->app->make(SelfMonitoringGuard::class);
+
+            if ($guard->isSelfRequest()) {
+                $buffer->pause();
+            }
         });
-    }
-
-    protected function isSelfRequest(): bool
-    {
-        $request = request();
-
-        if (! $request || ! $request->is('api/ingest', 'api/deploy')) {
-            return false;
-        }
-
-        $laraSpanUrl = rtrim($this->app['config']->get('laraspan.url', ''), '/');
-        $appUrl = rtrim($this->app['config']->get('app.url', ''), '/');
-
-        return $laraSpanUrl !== '' && $appUrl !== '' && $laraSpanUrl === $appUrl;
     }
 }
