@@ -4,6 +4,7 @@ namespace LaraSpan\Client\Listeners;
 
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Transport\TransportInterface;
 
 class SchedulerListener
@@ -15,11 +16,17 @@ class SchedulerListener
 
     public function handle(ScheduledTaskFinished $event): void
     {
+        $description = $event->task->command ?? $event->task->description ?? '';
+
+        if (str_contains($description, FlushEventsJob::class)) {
+            return;
+        }
+
         $this->buffer->push([
             'type' => 'scheduler',
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
-                'command' => $event->task->command ?? $event->task->description,
+                'command' => $description,
                 'duration_ms' => round($event->runtime * 1000, 2),
                 'exit_code' => $event->task->exitCode,
                 'request_id' => $this->buffer->getRequestId(),
