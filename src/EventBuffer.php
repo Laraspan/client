@@ -114,6 +114,7 @@ class EventBuffer
         $this->events = [];
         $this->context = [];
         $this->queryPatterns = [];
+        $this->paused = false;
         $this->requestId = (string) Str::uuid();
     }
 }
