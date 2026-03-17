@@ -33,17 +33,16 @@ php artisan laraspan:test
 
 ## How it works
 
-```
-Request lifecycle
-  |
-  |-- Middleware records start time + user
-  |-- Listeners collect events in-memory (zero I/O)
-  +-- terminate()
-        |-- Sample > Redact > Filter
-        +-- RPUSH to Redis (<0.5ms)
-              |
-              +-- FlushEventsJob (queue worker)
-                    +-- Batch + gzip + POST > LaraSpan Server
+```mermaid
+flowchart LR
+    A[Request starts] --> B[Middleware records\nstart time + user]
+    B --> C[Listeners collect\nevents in-memory]
+    C --> D[terminate]
+    D --> E[Sample + Redact + Filter]
+    E --> F[RPUSH to Redis\n< 0.5ms]
+    F --> G[FlushEventsJob\nqueue worker]
+    G --> H[Batch + gzip + POST]
+    H --> I[LaraSpan Server]
 ```
 
 - **Zero response time impact.** Only a sub-millisecond Redis write on terminate.
