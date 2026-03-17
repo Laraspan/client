@@ -26,9 +26,9 @@ class HttpClientListener
     {
         $startTime = null;
 
-        if ($this->pendingRequests->contains($event->request)) {
+        if ($this->pendingRequests->offsetExists($event->request)) {
             $startTime = $this->pendingRequests[$event->request];
-            $this->pendingRequests->detach($event->request);
+            $this->pendingRequests->offsetUnset($event->request);
         }
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
@@ -54,9 +54,9 @@ class HttpClientListener
     {
         $startTime = null;
 
-        if ($this->pendingRequests->contains($event->request)) {
+        if ($this->pendingRequests->offsetExists($event->request)) {
             $startTime = $this->pendingRequests[$event->request];
-            $this->pendingRequests->detach($event->request);
+            $this->pendingRequests->offsetUnset($event->request);
         }
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
