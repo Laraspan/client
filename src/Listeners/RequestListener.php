@@ -21,8 +21,7 @@ class RequestListener
 
     public function handle(RequestHandled $event): void
     {
-        $startTime = $event->request->attributes->get('laraspan_start_time');
-        $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
+        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
         $slowThreshold = config('laraspan.thresholds.slow_request_ms', 1000);
         $nPlusOneThreshold = config('laraspan.thresholds.n_plus_one_threshold', 5);
@@ -32,11 +31,12 @@ class RequestListener
             'uri' => $event->request->getRequestUri(),
             'method' => $event->request->method(),
             'status_code' => $event->response->getStatusCode(),
-            'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+            'duration_ms' => round($durationMs, 2),
             'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             'query_count' => $this->buffer->getQueryCount(),
             'request_id' => $this->buffer->getRequestId(),
-            'is_slow' => $durationMs !== null && $durationMs >= $slowThreshold,
+            'user_id' => $event->request->user()?->getAuthIdentifier(),
+            'is_slow' => $durationMs >= $slowThreshold,
             'has_n_plus_one' => $this->buffer->hasNPlusOne($nPlusOneThreshold),
         ];
 

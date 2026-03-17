@@ -14,17 +14,7 @@ class LaraSpanMiddleware
     {
         if ($this->shouldIgnore($request)) {
             $this->buffer->pause();
-
-            return $next($request);
         }
-
-        $request->attributes->set('laraspan_start_time', microtime(true));
-        $request->attributes->set('laraspan_request_id', $this->buffer->getRequestId());
-
-        $this->buffer->setContext([
-            'request_id' => $this->buffer->getRequestId(),
-            'user_id' => $request->user()?->getAuthIdentifier(),
-        ]);
 
         return $next($request);
     }

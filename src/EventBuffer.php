@@ -21,10 +21,19 @@ class EventBuffer
 
     protected bool $paused = false;
 
+    protected float $startTime;
+
     public function __construct(int $maxEvents = 5000)
     {
-        $this->requestId = (string) Str::uuid();
         $this->maxEvents = $maxEvents;
+        $this->requestId = (string) Str::uuid();
+        $this->startTime = microtime(true);
+        $this->context = ['request_id' => $this->requestId];
+    }
+
+    public function getStartTime(): float
+    {
+        return $this->startTime;
     }
 
     public function pause(): void
@@ -112,9 +121,10 @@ class EventBuffer
     public function reset(): void
     {
         $this->events = [];
-        $this->context = [];
         $this->queryPatterns = [];
         $this->paused = false;
         $this->requestId = (string) Str::uuid();
+        $this->startTime = microtime(true);
+        $this->context = ['request_id' => $this->requestId];
     }
 }
