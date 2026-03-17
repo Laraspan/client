@@ -31,6 +31,10 @@ class LaraSpanMiddleware
 
     protected function shouldIgnore(Request $request): bool
     {
+        if ($this->isSelfMonitoring() && $request->is('api/ingest', 'api/deploy')) {
+            return true;
+        }
+
         foreach (config('laraspan.ignore_paths', []) as $pattern) {
             if ($request->is($pattern)) {
                 return true;
@@ -38,5 +42,13 @@ class LaraSpanMiddleware
         }
 
         return false;
+    }
+
+    protected function isSelfMonitoring(): bool
+    {
+        $laraSpanUrl = rtrim(config('laraspan.url', ''), '/');
+        $appUrl = rtrim(config('app.url', ''), '/');
+
+        return $laraSpanUrl !== '' && $appUrl !== '' && $laraSpanUrl === $appUrl;
     }
 }
