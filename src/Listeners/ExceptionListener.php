@@ -75,6 +75,7 @@ class ExceptionListener
                 'code_snippet' => $exceptionSourceCode,
                 'trace' => $trace,
                 'route' => $request?->route()?->uri(),
+                'uri' => $request?->getRequestUri(),
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);

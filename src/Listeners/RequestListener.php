@@ -29,6 +29,7 @@ class RequestListener
 
         $payload = [
             'route' => $event->request->route()?->uri(),
+            'uri' => $event->request->getRequestUri(),
             'method' => $event->request->method(),
             'status_code' => $event->response->getStatusCode(),
             'duration_ms' => $durationMs ? round($durationMs, 2) : null,
