@@ -12,6 +12,12 @@ class LaraSpanMiddleware
 
     public function handle(Request $request, Closure $next): Response
     {
+        if ($this->shouldIgnore($request)) {
+            $this->buffer->pause();
+
+            return $next($request);
+        }
+
         $request->attributes->set('laraspan_start_time', microtime(true));
         $request->attributes->set('laraspan_request_id', $this->buffer->getRequestId());
 
@@ -21,5 +27,16 @@ class LaraSpanMiddleware
         ]);
 
         return $next($request);
+    }
+
+    protected function shouldIgnore(Request $request): bool
+    {
+        foreach (config('laraspan.ignore_paths', []) as $pattern) {
+            if ($request->is($pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -7,7 +7,7 @@ use GuzzleHttp\Exception\GuzzleException;
 
 class HttpSender
 {
-    public const SDK_VERSION = '1.0.0';
+    public const SDK_VERSION = '1.2.0';
 
     public function __construct(
         protected string $baseUrl,

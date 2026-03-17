@@ -130,6 +130,21 @@ return [
 
     'ignore_vendor_events' => env('LARASPAN_IGNORE_VENDOR_EVENTS', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ignored Paths
+    |--------------------------------------------------------------------------
+    |
+    | Request paths that should not be monitored. Supports wildcard patterns.
+    | Useful for health checks or self-monitoring (e.g., 'api/ingest').
+    |
+    */
+
+    'ignore_paths' => [
+        // 'api/ingest',
+        // 'health',
+    ],
+
     'ignore_exceptions' => [
         NotFoundHttpException::class,
         AuthenticationException::class,
