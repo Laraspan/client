@@ -9,8 +9,6 @@ use LaraSpan\Client\Transport\TransportInterface;
 
 class CommandListener
 {
-    protected ?float $startTime = null;
-
     /** @var string[] Commands to ignore to avoid recursion */
     protected array $ignoredCommands = [
         'laraspan:flush',
@@ -45,7 +43,6 @@ class CommandListener
         }
 
         $this->buffer->reset();
-        $this->startTime = microtime(true);
     }
 
     public function handleFinished(CommandFinished $event): void
@@ -54,8 +51,7 @@ class CommandListener
             return;
         }
 
-        $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
-        $this->startTime = null;
+        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
         $this->buffer->push([
             'type' => 'command',
@@ -63,7 +59,7 @@ class CommandListener
             'payload' => [
                 'command' => $event->command,
                 'exit_code' => $event->exitCode,
-                'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'duration_ms' => round($durationMs, 2),
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);

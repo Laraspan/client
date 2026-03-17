@@ -89,6 +89,11 @@ class LaraSpanServiceProvider extends ServiceProvider
             return new EventFilter;
         });
 
+        $this->app->singleton(CommandListener::class);
+        $this->app->singleton(JobListener::class);
+        $this->app->singleton(HttpClientListener::class);
+        $this->app->singleton(MailListener::class);
+
         $this->app->singleton(SelfMonitoringGuard::class, function ($app) {
             return new SelfMonitoringGuard(
                 laraSpanUrl: rtrim($app['config']->get('laraspan.url', ''), '/'),

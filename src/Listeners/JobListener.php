@@ -12,8 +12,6 @@ use LaraSpan\Client\Transport\TransportInterface;
 
 class JobListener
 {
-    protected ?float $startTime = null;
-
     public function __construct(
         protected EventBuffer $buffer,
         protected TransportInterface $transport,
@@ -28,11 +26,6 @@ class JobListener
         }
 
         $this->buffer->reset();
-        $this->startTime = microtime(true);
-
-        $this->buffer->setContext([
-            'request_id' => $this->buffer->getRequestId(),
-        ]);
     }
 
     public function handleProcessed(JobProcessed $event): void
@@ -41,7 +34,7 @@ class JobListener
             return;
         }
 
-        $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
+        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
         $this->buffer->push([
             'type' => 'job',
@@ -50,7 +43,7 @@ class JobListener
                 'job_class' => $event->job->resolveName(),
                 'queue' => $event->job->getQueue(),
                 'attempt' => $event->job->attempts(),
-                'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'duration_ms' => round($durationMs, 2),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
                 'status' => 'processed',
                 'request_id' => $this->buffer->getRequestId(),
@@ -66,13 +59,13 @@ class JobListener
             return;
         }
 
-        $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
+        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
         $payload = [
             'job_class' => $event->job->resolveName(),
             'queue' => $event->job->getQueue(),
             'attempt' => $event->job->attempts(),
-            'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+            'duration_ms' => round($durationMs, 2),
             'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             'status' => 'failed',
             'request_id' => $this->buffer->getRequestId(),
