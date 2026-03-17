@@ -185,6 +185,10 @@ class LaraSpanServiceProvider extends ServiceProvider
     protected function registerTerminatingCallback(): void
     {
         $this->app->terminating(function () {
+            if ($this->isSelfRequest()) {
+                return;
+            }
+
             /** @var EventBuffer $buffer */
             $buffer = $this->app->make(EventBuffer::class);
 
@@ -247,5 +251,19 @@ class LaraSpanServiceProvider extends ServiceProvider
             $buffer = $this->app->make(EventBuffer::class);
             $buffer->reset();
         });
+    }
+
+    protected function isSelfRequest(): bool
+    {
+        $request = request();
+
+        if (! $request || ! $request->is('api/ingest', 'api/deploy')) {
+            return false;
+        }
+
+        $laraSpanUrl = rtrim($this->app['config']->get('laraspan.url', ''), '/');
+        $appUrl = rtrim($this->app['config']->get('app.url', ''), '/');
+
+        return $laraSpanUrl !== '' && $appUrl !== '' && $laraSpanUrl === $appUrl;
     }
 }
