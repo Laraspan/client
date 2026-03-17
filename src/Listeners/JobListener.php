@@ -6,6 +6,7 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Support\ExceptionFingerprinter;
 use LaraSpan\Client\Transport\TransportInterface;
 
@@ -20,6 +21,12 @@ class JobListener
 
     public function handleProcessing(JobProcessing $event): void
     {
+        if ($this->isLaraSpanJob($event->job->resolveName())) {
+            $this->buffer->pause();
+
+            return;
+        }
+
         $this->buffer->reset();
         $this->startTime = microtime(true);
 
@@ -30,6 +37,10 @@ class JobListener
 
     public function handleProcessed(JobProcessed $event): void
     {
+        if ($this->isLaraSpanJob($event->job->resolveName())) {
+            return;
+        }
+
         $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
 
         $this->buffer->push([
@@ -51,6 +62,10 @@ class JobListener
 
     public function handleFailed(JobFailed $event): void
     {
+        if ($this->isLaraSpanJob($event->job->resolveName())) {
+            return;
+        }
+
         $durationMs = $this->startTime ? (microtime(true) - $this->startTime) * 1000 : null;
 
         $payload = [
@@ -78,6 +93,11 @@ class JobListener
         ]);
 
         $this->flushBuffer();
+    }
+
+    protected function isLaraSpanJob(string $jobClass): bool
+    {
+        return $jobClass === FlushEventsJob::class;
     }
 
     protected function flushBuffer(): void
