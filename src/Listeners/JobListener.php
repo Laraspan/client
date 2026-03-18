@@ -8,6 +8,7 @@ use Illuminate\Queue\Events\JobProcessing;
 use LaraSpan\Client\EventBuffer;
 use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Support\ExceptionFingerprinter;
+use LaraSpan\Client\Support\PerformanceFingerprinter;
 use LaraSpan\Client\Transport\TransportInterface;
 
 class JobListener
@@ -35,17 +36,22 @@ class JobListener
         }
 
         $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
+        $slowThreshold = config('laraspan.thresholds.slow_job_ms', 5000);
+        $isSlow = $durationMs >= $slowThreshold;
+        $jobClass = $event->job->resolveName();
 
         $this->buffer->push([
             'type' => 'job',
             'occurred_at' => now()->toIso8601String(),
+            'fingerprint' => $isSlow ? PerformanceFingerprinter::job($jobClass) : null,
             'payload' => [
-                'job_class' => $event->job->resolveName(),
+                'job_class' => $jobClass,
                 'queue' => $event->job->getQueue(),
                 'attempt' => $event->job->attempts(),
                 'duration_ms' => round($durationMs, 2),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
                 'status' => 'processed',
+                'is_slow' => $isSlow,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
@@ -60,14 +66,18 @@ class JobListener
         }
 
         $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
+        $slowThreshold = config('laraspan.thresholds.slow_job_ms', 5000);
+        $isSlow = $durationMs >= $slowThreshold;
+        $jobClass = $event->job->resolveName();
 
         $payload = [
-            'job_class' => $event->job->resolveName(),
+            'job_class' => $jobClass,
             'queue' => $event->job->getQueue(),
             'attempt' => $event->job->attempts(),
             'duration_ms' => round($durationMs, 2),
             'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             'status' => 'failed',
+            'is_slow' => $isSlow,
             'request_id' => $this->buffer->getRequestId(),
         ];
 
@@ -82,6 +92,7 @@ class JobListener
         $this->buffer->push([
             'type' => 'job',
             'occurred_at' => now()->toIso8601String(),
+            'fingerprint' => $isSlow ? PerformanceFingerprinter::job($jobClass) : null,
             'payload' => $payload,
         ]);
 

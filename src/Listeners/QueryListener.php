@@ -4,6 +4,7 @@ namespace LaraSpan\Client\Listeners;
 
 use Illuminate\Database\Events\QueryExecuted;
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\Support\PerformanceFingerprinter;
 use LaraSpan\Client\Support\SqlNormalizer;
 
 class QueryListener
@@ -30,9 +31,12 @@ class QueryListener
             $payload['bindings'] = $event->bindings;
         }
 
+        $isSlow = $payload['is_slow'];
+
         $this->buffer->push([
             'type' => 'query',
             'occurred_at' => now()->toIso8601String(),
+            'fingerprint' => $isSlow ? PerformanceFingerprinter::query($event->sql) : null,
             'payload' => $payload,
         ]);
     }

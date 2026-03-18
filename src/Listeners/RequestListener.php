@@ -5,6 +5,7 @@ namespace LaraSpan\Client\Listeners;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\Support\PerformanceFingerprinter;
 
 class RequestListener
 {
@@ -48,9 +49,13 @@ class RequestListener
             $payload['request_payload'] = $event->request->all();
         }
 
+        $isSlow = $payload['is_slow'];
+        $route = $payload['route'] ?? $payload['uri'] ?? null;
+
         $this->buffer->push([
             'type' => 'request',
             'occurred_at' => now()->toIso8601String(),
+            'fingerprint' => $isSlow && $route ? PerformanceFingerprinter::request($route) : null,
             'payload' => $payload,
         ]);
     }
