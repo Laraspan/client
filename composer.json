@@ -6,11 +6,11 @@
     "keywords": ["laravel", "monitoring", "apm", "error-tracking"],
     "require": {
         "php": "^8.2",
-        "illuminate/support": "^11.0|^12.0",
-        "illuminate/http": "^11.0|^12.0",
-        "illuminate/queue": "^11.0|^12.0",
-        "illuminate/events": "^11.0|^12.0",
-        "illuminate/redis": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/queue": "^11.0|^12.0|^13.0",
+        "illuminate/events": "^11.0|^12.0|^13.0",
+        "illuminate/redis": "^11.0|^12.0|^13.0",
         "guzzlehttp/guzzle": "^7.0"
     },
     "require-dev": {
