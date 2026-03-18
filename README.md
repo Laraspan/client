@@ -335,4 +335,4 @@ Use `inline` transport during development to avoid needing Redis and a queue wor
 
 ## License
 
-MIT
+LaraSpan Client is open-sourced software licensed under the [MIT license](LICENSE).
