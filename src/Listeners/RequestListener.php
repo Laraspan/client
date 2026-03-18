@@ -5,6 +5,7 @@ namespace LaraSpan\Client\Listeners;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\LaraSpanMiddleware;
 use LaraSpan\Client\Support\PerformanceFingerprinter;
 
 class RequestListener
@@ -39,7 +40,15 @@ class RequestListener
             'user_id' => $event->request->user()?->getAuthIdentifier(),
             'is_slow' => $durationMs >= $slowThreshold,
             'has_n_plus_one' => $this->buffer->hasNPlusOne($nPlusOneThreshold),
+            'server' => gethostname(),
+            'request_size' => strlen($event->request->getContent()),
+            'user_ip' => $event->request->ip(),
         ];
+
+        $lifecycle = LaraSpanMiddleware::getLifecyclePhases();
+        if ($lifecycle !== null) {
+            $payload['lifecycle'] = $lifecycle;
+        }
 
         if (config('laraspan.capture.headers', false)) {
             $payload['headers'] = $this->captureHeaders($event->request);
