@@ -8,7 +8,6 @@ use Illuminate\Queue\Events\JobProcessing;
 use LaraSpan\Client\EventBuffer;
 use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Support\ExceptionFingerprinter;
-use LaraSpan\Client\Support\PerformanceFingerprinter;
 use LaraSpan\Client\Transport\TransportInterface;
 
 class JobListener
@@ -43,7 +42,7 @@ class JobListener
         $this->buffer->push([
             'type' => 'job',
             'occurred_at' => now()->toIso8601String(),
-            'fingerprint' => $isSlow ? PerformanceFingerprinter::job($jobClass) : null,
+            'fingerprint' => sha1('job:'.$jobClass),
             'payload' => [
                 'job_class' => $jobClass,
                 'queue' => $event->job->getQueue(),
@@ -92,7 +91,7 @@ class JobListener
         $this->buffer->push([
             'type' => 'job',
             'occurred_at' => now()->toIso8601String(),
-            'fingerprint' => $isSlow ? PerformanceFingerprinter::job($jobClass) : null,
+            'fingerprint' => sha1('job:'.$jobClass),
             'payload' => $payload,
         ]);
 

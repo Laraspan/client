@@ -55,6 +55,7 @@ class CommandListener
 
         $this->buffer->push([
             'type' => 'command',
+            'fingerprint' => sha1('command:'.$event->command),
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'command' => $event->command,

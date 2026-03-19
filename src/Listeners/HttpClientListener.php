@@ -29,13 +29,16 @@ class HttpClientListener
         $uri = $event->request->url();
         $parsed = parse_url($uri);
 
+        $host = $parsed['host'] ?? 'unknown';
+
         $this->buffer->push([
             'type' => 'http_client',
+            'fingerprint' => sha1('http_client:'.$host),
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'method' => $event->request->method(),
                 'url' => $uri,
-                'host' => $parsed['host'] ?? 'unknown',
+                'host' => $host,
                 'status_code' => $event->response->status(),
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
                 'is_slow' => $durationMs !== null && $durationMs >= 1000,
@@ -54,13 +57,16 @@ class HttpClientListener
         $uri = $event->request->url();
         $parsed = parse_url($uri);
 
+        $host = $parsed['host'] ?? 'unknown';
+
         $this->buffer->push([
             'type' => 'http_client',
+            'fingerprint' => sha1('http_client:'.$host),
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'method' => $event->request->method(),
                 'url' => $uri,
-                'host' => $parsed['host'] ?? 'unknown',
+                'host' => $host,
                 'status_code' => 0,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
                 'is_failed' => true,
@@ -71,6 +77,6 @@ class HttpClientListener
 
     protected function requestKey(mixed $request): string
     {
-        return $request->method() . ' ' . $request->url();
+        return $request->method().' '.$request->url();
     }
 }

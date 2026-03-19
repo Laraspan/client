@@ -24,6 +24,7 @@ class SchedulerListener
 
         $this->buffer->push([
             'type' => 'scheduler',
+            'fingerprint' => sha1('scheduler:'.$description),
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'command' => $description,

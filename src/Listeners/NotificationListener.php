@@ -25,12 +25,14 @@ class NotificationListener
         unset($this->pendingNotifications[$key]);
 
         $durationMs = $startTime ? (microtime(true) - $startTime) * 1000 : null;
+        $notificationClass = get_class($event->notification);
 
         $this->buffer->push([
             'type' => 'notification',
+            'fingerprint' => sha1('notification:'.$notificationClass),
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
-                'notification_class' => get_class($event->notification),
+                'notification_class' => $notificationClass,
                 'channel' => $event->channel,
                 'notifiable_type' => get_class($event->notifiable),
                 'notifiable_id' => $event->notifiable->getKey(),
