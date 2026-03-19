@@ -18,6 +18,7 @@ use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
@@ -54,7 +55,7 @@ class LaraSpanServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/laraspan.php', 'laraspan');
+        $this->mergeConfigFrom(__DIR__.'/../config/laraspan.php', 'laraspan');
 
         $this->app->singleton(EventBuffer::class, function ($app) {
             return new EventBuffer(
@@ -93,6 +94,7 @@ class LaraSpanServiceProvider extends ServiceProvider
         $this->app->singleton(JobListener::class);
         $this->app->singleton(HttpClientListener::class);
         $this->app->singleton(MailListener::class);
+        $this->app->singleton(NotificationListener::class);
 
         $this->app->singleton(SelfMonitoringGuard::class, function ($app) {
             return new SelfMonitoringGuard(
@@ -105,7 +107,7 @@ class LaraSpanServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/../config/laraspan.php' => config_path('laraspan.php'),
+            __DIR__.'/../config/laraspan.php' => config_path('laraspan.php'),
         ], 'laraspan-config');
 
         if ($this->app->runningInConsole()) {
@@ -176,7 +178,8 @@ class LaraSpanServiceProvider extends ServiceProvider
         }
 
         if ($monitors['notification'] ?? true) {
-            Event::listen(NotificationSent::class, NotificationListener::class);
+            Event::listen(NotificationSending::class, [NotificationListener::class, 'handleSending']);
+            Event::listen(NotificationSent::class, [NotificationListener::class, 'handleSent']);
         }
 
         if ($monitors['http_client'] ?? true) {
