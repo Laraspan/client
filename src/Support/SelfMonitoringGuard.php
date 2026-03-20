@@ -17,7 +17,7 @@ class SelfMonitoringGuard
 
         $request = request();
 
-        return $request && $request->is('api/ingest', 'api/deploy');
+        return $request && $request->is('api/v1/ingest', 'api/v1/deploy');
     }
 
     public function isSelfMonitoring(): bool

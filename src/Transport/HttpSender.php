@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class HttpSender
 {
-    public const SDK_VERSION = '1.7.0';
+    public const SDK_VERSION = '2.0.0';
 
     public function __construct(
         protected string $baseUrl,
@@ -25,8 +25,7 @@ class HttpSender
      */
     public function send(array $events, bool $compress = true): int
     {
-        return $this->post('/api/ingest', [
-            'token' => $this->token,
+        return $this->post('/api/v1/ingest', [
             'sdk_version' => self::SDK_VERSION,
             'events' => $events,
         ], $compress);
@@ -41,7 +40,7 @@ class HttpSender
      */
     public function deploy(array $data): int
     {
-        return $this->post('/api/deploy', $data, compress: false);
+        return $this->post('/api/v1/deploy', $data, compress: false);
     }
 
     /**
