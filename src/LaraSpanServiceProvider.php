@@ -266,6 +266,8 @@ class LaraSpanServiceProvider extends ServiceProvider
         }
 
         Event::listen(RequestReceived::class, function () {
+            LaraSpanMiddleware::resetLifecycle();
+
             /** @var EventBuffer $buffer */
             $buffer = $this->app->make(EventBuffer::class);
             $buffer->reset();

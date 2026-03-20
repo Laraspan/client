@@ -4,6 +4,7 @@ namespace LaraSpan\Client\Transport;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Facades\Log;
 
 class HttpSender
 {
@@ -50,6 +51,14 @@ class HttpSender
     {
         $payload = json_encode($data);
 
+        if ($payload === false) {
+            Log::warning('LaraSpan: Failed to JSON-encode event payload.', [
+                'error' => json_last_error_msg(),
+            ]);
+
+            return 0;
+        }
+
         $headers = [
             'Content-Type' => 'application/json',
             'Authorization' => 'Bearer '.$this->token,
@@ -77,6 +86,7 @@ class HttpSender
         return new self(
             baseUrl: config('laraspan.url', ''),
             token: config('laraspan.token', ''),
+            timeout: config('laraspan.transport_timeout', 5),
         );
     }
 }

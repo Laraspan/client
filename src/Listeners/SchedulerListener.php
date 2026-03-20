@@ -30,6 +30,7 @@ class SchedulerListener
                 'command' => $description,
                 'duration_ms' => round($event->runtime * 1000, 2),
                 'exit_code' => $event->task->exitCode,
+                'is_failed' => ($event->task->exitCode ?? 0) !== 0,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);

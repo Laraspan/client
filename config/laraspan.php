@@ -51,6 +51,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Redis Connection
+    |--------------------------------------------------------------------------
+    |
+    | The Redis connection name used for the queue transport buffer.
+    |
+    */
+
+    'redis_connection' => env('LARASPAN_REDIS_CONNECTION', 'default'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transport Timeout
+    |--------------------------------------------------------------------------
+    |
+    | HTTP timeout in seconds for sending events to the LaraSpan server.
+    |
+    */
+
+    'transport_timeout' => env('LARASPAN_TRANSPORT_TIMEOUT', 5),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Max Queue Size
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of events allowed in the Redis buffer. If exceeded,
+    | the oldest events are trimmed to prevent unbounded memory growth.
+    |
+    */
+
+    'max_queue_size' => env('LARASPAN_MAX_QUEUE_SIZE', 50000),
+
+    /*
+    |--------------------------------------------------------------------------
     | Monitors
     |--------------------------------------------------------------------------
     |
@@ -81,7 +115,7 @@ return [
     'buffer' => [
         'flush_threshold' => env('LARASPAN_FLUSH_THRESHOLD', 100),
         'max_batch_size' => env('LARASPAN_MAX_BATCH_SIZE', 500),
-        'max_events_per_request' => 5000,
+        'max_events_per_request' => env('LARASPAN_MAX_EVENTS_PER_REQUEST', 5000),
     ],
 
     /*
@@ -212,6 +246,6 @@ return [
     |
     */
 
-    'redact_headers' => explode(',', env('LARASPAN_REDACT_HEADERS', '')),
+    'redact_headers' => array_filter(explode(',', env('LARASPAN_REDACT_HEADERS', ''))),
 
 ];

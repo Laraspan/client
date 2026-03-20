@@ -50,6 +50,7 @@ class JobListener
                 'duration_ms' => round($durationMs, 2),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
                 'status' => 'processed',
+                'is_failed' => false,
                 'is_slow' => $isSlow,
                 'request_id' => $this->buffer->getRequestId(),
             ],
@@ -76,6 +77,7 @@ class JobListener
             'duration_ms' => round($durationMs, 2),
             'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             'status' => 'failed',
+            'is_failed' => true,
             'is_slow' => $isSlow,
             'request_id' => $this->buffer->getRequestId(),
         ];

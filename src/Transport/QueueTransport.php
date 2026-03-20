@@ -23,9 +23,15 @@ class QueueTransport implements TransportInterface
         try {
             $encoded = array_map('json_encode', $events);
 
-            Redis::connection('default')->command('rpush', ['laraspan:events', ...$encoded]);
+            $redis = Redis::connection(config('laraspan.redis_connection', 'default'));
 
-            $length = (int) Redis::connection('default')->command('llen', ['laraspan:events']);
+            $redis->command('rpush', ['laraspan:events', ...$encoded]);
+
+            $length = (int) $redis->command('llen', ['laraspan:events']);
+
+            if ($length > config('laraspan.max_queue_size', 50000)) {
+                $redis->command('ltrim', ['laraspan:events', -config('laraspan.max_queue_size', 50000), -1]);
+            }
 
             if ($length >= $this->flushThreshold) {
                 FlushEventsJob::dispatch();

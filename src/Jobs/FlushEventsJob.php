@@ -55,7 +55,7 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
         $events = [];
 
         for ($i = 0; $i < $maxBatchSize; $i++) {
-            $raw = Redis::connection('default')->command('lpop', ['laraspan:events']);
+            $raw = Redis::connection(config('laraspan.redis_connection', 'default'))->command('lpop', ['laraspan:events']);
 
             if ($raw === null) {
                 break;
@@ -73,7 +73,7 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
 
     protected function dispatchNextIfNeeded(): void
     {
-        $remaining = (int) Redis::connection('default')->command('llen', ['laraspan:events']);
+        $remaining = (int) Redis::connection(config('laraspan.redis_connection', 'default'))->command('llen', ['laraspan:events']);
 
         if ($remaining > 0) {
             self::dispatch();
@@ -84,6 +84,6 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
     protected function reQueueEvents(array $events): void
     {
         $encoded = array_map('json_encode', $events);
-        Redis::connection('default')->command('rpush', ['laraspan:events', ...$encoded]);
+        Redis::connection(config('laraspan.redis_connection', 'default'))->command('rpush', ['laraspan:events', ...$encoded]);
     }
 }

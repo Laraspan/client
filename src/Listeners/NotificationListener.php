@@ -37,6 +37,7 @@ class NotificationListener
                 'notifiable_type' => get_class($event->notifiable),
                 'notifiable_id' => $event->notifiable->getKey(),
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'source' => get_class($event->notifiable),
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);

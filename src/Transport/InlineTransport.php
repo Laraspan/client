@@ -20,7 +20,7 @@ class InlineTransport implements TransportInterface
         }
 
         try {
-            $sender = new HttpSender($this->baseUrl, $this->token, timeout: 5);
+            $sender = new HttpSender($this->baseUrl, $this->token, timeout: config('laraspan.transport_timeout', 5));
             $sender->send($events);
         } catch (GuzzleException $e) {
             Log::warning('LaraSpan: Failed to send events inline.', [

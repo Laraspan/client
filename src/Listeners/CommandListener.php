@@ -14,6 +14,7 @@ class CommandListener
         'laraspan:flush',
         'laraspan:test',
         'laraspan:install',
+        'laraspan:deploy',
         'schedule:run',
         'schedule:finish',
         'package:discover',
