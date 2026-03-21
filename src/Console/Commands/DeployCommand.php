@@ -9,7 +9,7 @@ use LaraSpan\Client\Transport\HttpSender;
 class DeployCommand extends Command
 {
     protected $signature = 'laraspan:deploy
-        {--version= : The deployment version (e.g., 1.2.0)}
+        {--ver= : The deployment version (e.g., 1.2.0)}
         {--commit= : The git commit hash}
         {--deployer= : The person who deployed}';
 
@@ -26,9 +26,9 @@ class DeployCommand extends Command
             return self::FAILURE;
         }
 
-        $version = $this->option('version');
+        $version = $this->option('ver');
         if (! $version) {
-            $this->error('The --version option is required.');
+            $this->error('The --ver option is required.');
 
             return self::FAILURE;
         }
