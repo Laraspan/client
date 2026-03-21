@@ -32,8 +32,8 @@ class MailListener
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'subject' => $message->getSubject(),
-                'to' => array_keys($message->getTo() ?? []),
-                'from' => array_keys($message->getFrom() ?? []),
+                'to' => array_map(fn ($addr) => method_exists($addr, 'getAddress') ? $addr->getAddress() : (string) $addr, $message->getTo() ?? []),
+                'from' => array_map(fn ($addr) => method_exists($addr, 'getAddress') ? $addr->getAddress() : (string) $addr, $message->getFrom() ?? []),
                 'driver' => $event->data['mailer'] ?? null,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
                 'request_id' => $this->buffer->getRequestId(),
@@ -43,6 +43,8 @@ class MailListener
 
     protected function messageKey(mixed $message): string
     {
-        return $message->getSubject().':'.implode(',', array_keys($message->getTo() ?? []));
+        $to = array_map(fn ($addr) => method_exists($addr, 'getAddress') ? $addr->getAddress() : (string) $addr, $message->getTo() ?? []);
+
+        return $message->getSubject().':'.implode(',', $to);
     }
 }
