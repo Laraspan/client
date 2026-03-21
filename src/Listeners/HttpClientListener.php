@@ -41,7 +41,8 @@ class HttpClientListener
                 'host' => $host,
                 'status_code' => $event->response->status(),
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
-                'is_slow' => $durationMs !== null && $durationMs >= 1000,
+                'is_slow' => $durationMs !== null && $durationMs >= config('laraspan.thresholds.slow_http_client_ms', 1000),
+                'is_failed' => false,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
@@ -69,10 +70,16 @@ class HttpClientListener
                 'host' => $host,
                 'status_code' => 0,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'is_slow' => $durationMs !== null && $durationMs >= config('laraspan.thresholds.slow_http_client_ms', 1000),
                 'is_failed' => true,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
+    }
+
+    public function resetPending(): void
+    {
+        $this->pendingRequests = [];
     }
 
     protected function requestKey(mixed $request): string

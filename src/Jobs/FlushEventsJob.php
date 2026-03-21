@@ -51,16 +51,21 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
     /** @return array<int, array<string, mixed>> */
     protected function popEventsFromRedis(): array
     {
-        $maxBatchSize = config('laraspan.buffer.max_batch_size', 500);
+        $batchSize = config('laraspan.buffer.max_batch_size', 500);
+        $key = 'laraspan:events';
+        $redis = Redis::connection(config('laraspan.redis_connection', 'default'));
+
+        $rawEvents = $redis->command('lrange', [$key, 0, $batchSize - 1]);
+
+        if (empty($rawEvents)) {
+            return [];
+        }
+
+        $redis->command('ltrim', [$key, count($rawEvents), -1]);
+
         $events = [];
 
-        for ($i = 0; $i < $maxBatchSize; $i++) {
-            $raw = Redis::connection(config('laraspan.redis_connection', 'default'))->command('lpop', ['laraspan:events']);
-
-            if ($raw === null) {
-                break;
-            }
-
+        foreach ($rawEvents as $raw) {
             $decoded = json_decode($raw, true);
 
             if ($decoded !== null) {

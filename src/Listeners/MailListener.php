@@ -41,6 +41,11 @@ class MailListener
         ]);
     }
 
+    public function resetPending(): void
+    {
+        $this->pendingMessages = [];
+    }
+
     protected function messageKey(mixed $message): string
     {
         $to = array_map(fn ($addr) => method_exists($addr, 'getAddress') ? $addr->getAddress() : (string) $addr, $message->getTo() ?? []);

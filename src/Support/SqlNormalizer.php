@@ -10,7 +10,7 @@ class SqlNormalizer
         $sql = preg_replace("/'[^']*'/", '?', $sql);
 
         // Replace numeric literals (integers and floats) with placeholder
-        $sql = preg_replace('/\b\d+(\.\d+)?\b/', '?', $sql);
+        $sql = preg_replace('/(?<![a-zA-Z_])\b\d+(\.\d+)?\b(?![a-zA-Z_])/', '?', $sql);
 
         // Collapse multiple whitespace
         $sql = preg_replace('/\s+/', ' ', trim($sql));

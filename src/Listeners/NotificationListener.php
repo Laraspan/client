@@ -35,7 +35,7 @@ class NotificationListener
                 'notification_class' => $notificationClass,
                 'channel' => $event->channel,
                 'notifiable_type' => get_class($event->notifiable),
-                'notifiable_id' => $event->notifiable->getKey(),
+                'notifiable_id' => method_exists($event->notifiable, 'getKey') ? $event->notifiable->getKey() : null,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
                 'source' => get_class($event->notifiable),
                 'request_id' => $this->buffer->getRequestId(),
@@ -43,8 +43,15 @@ class NotificationListener
         ]);
     }
 
+    public function resetPending(): void
+    {
+        $this->pendingNotifications = [];
+    }
+
     protected function notificationKey(NotificationSending|NotificationSent $event): string
     {
-        return get_class($event->notification).':'.$event->channel.':'.get_class($event->notifiable).':'.$event->notifiable->getKey();
+        $notifiableId = method_exists($event->notifiable, 'getKey') ? $event->notifiable->getKey() : spl_object_id($event->notifiable);
+
+        return get_class($event->notification).':'.$event->channel.':'.get_class($event->notifiable).':'.$notifiableId;
     }
 }

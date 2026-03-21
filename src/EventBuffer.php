@@ -62,7 +62,7 @@ class EventBuffer
             return;
         }
 
-        $this->events[] = array_merge($event, $this->context);
+        $this->events[] = array_merge($this->context, $event);
     }
 
     /** @return array<int, array<string, mixed>> */

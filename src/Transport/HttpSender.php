@@ -67,7 +67,12 @@ class HttpSender
 
         if ($compress) {
             $body = gzencode($payload);
-            $headers['Content-Encoding'] = 'gzip';
+            if ($body === false) {
+                $body = $payload;
+                unset($headers['Content-Encoding']);
+            } else {
+                $headers['Content-Encoding'] = 'gzip';
+            }
         }
 
         $client = new Client(['timeout' => $this->timeout]);

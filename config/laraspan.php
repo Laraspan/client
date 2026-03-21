@@ -128,6 +128,7 @@ return [
         'slow_request_ms' => env('LARASPAN_SLOW_REQUEST_MS', 1000),
         'slow_query_ms' => env('LARASPAN_SLOW_QUERY_MS', 100),
         'slow_job_ms' => env('LARASPAN_SLOW_JOB_MS', 5000),
+        'slow_http_client_ms' => env('LARASPAN_SLOW_HTTP_CLIENT_MS', 1000),
         'n_plus_one_threshold' => env('LARASPAN_N_PLUS_ONE_THRESHOLD', 5),
     ],
 

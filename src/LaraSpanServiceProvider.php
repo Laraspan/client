@@ -272,6 +272,14 @@ class LaraSpanServiceProvider extends ServiceProvider
             $buffer = $this->app->make(EventBuffer::class);
             $buffer->reset();
 
+            // Reset pending arrays to prevent Octane memory leaks
+            $this->app->make(MailListener::class)->resetPending();
+            $this->app->make(NotificationListener::class)->resetPending();
+            $this->app->make(HttpClientListener::class)->resetPending();
+
+            // Reset sampler override from previous request
+            $this->app->make(Sampler::class)->setOverride(null);
+
             /** @var SelfMonitoringGuard $guard */
             $guard = $this->app->make(SelfMonitoringGuard::class);
 
