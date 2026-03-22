@@ -47,6 +47,8 @@ class RequestListener
             'query_count' => $this->buffer->getQueryCount(),
             'request_id' => $this->buffer->getRequestId(),
             'user_id' => $event->request->user()?->getAuthIdentifier(),
+            'user_name' => $event->request->user()?->name ?? null,
+            'user_email' => $event->request->user()?->email ?? null,
             'is_slow' => $durationMs >= $slowThreshold,
             'has_n_plus_one' => $this->buffer->hasNPlusOne($nPlusOneThreshold),
             'server' => gethostname(),
