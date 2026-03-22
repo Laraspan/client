@@ -26,6 +26,7 @@ class LogListener
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'level' => $event->level,
+                'channel' => $event->channel ?? null,
                 'message' => mb_substr($event->message, 0, 2000),
                 'context' => array_slice($context, 0, 20),
                 'request_id' => $this->buffer->getRequestId(),
