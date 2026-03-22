@@ -34,7 +34,7 @@ class CacheListener
 
     public function handleWritten(KeyWritten $event): void
     {
-        $this->record($event->key, 'write', $event->tags ?? [], $event->storeName ?? 'default');
+        $this->record($event->key, 'write', $event->tags ?? [], $event->storeName ?? 'default', $event->seconds ?? null);
     }
 
     public function handleForgotten(KeyForgotten $event): void
@@ -53,22 +53,37 @@ class CacheListener
         return false;
     }
 
-    protected function record(string $key, string $operation, array $tags, string $store): void
+    protected function isSessionKey(string $key): bool
+    {
+        return (bool) preg_match('/^[0-9a-f]{40}$/i', $key);
+    }
+
+    protected function record(string $key, string $operation, array $tags, string $store, ?int $ttlSeconds = null): void
     {
         if (config('laraspan.ignore_vendor_events', true) && $this->isVendorKey($key)) {
             return;
         }
 
+        if ($this->isSessionKey($key)) {
+            return;
+        }
+
+        $payload = [
+            'key' => $key,
+            'operation' => $operation,
+            'tags' => $tags,
+            'store' => $store,
+            'request_id' => $this->buffer->getRequestId(),
+        ];
+
+        if ($operation === 'write' && $ttlSeconds !== null) {
+            $payload['ttl_seconds'] = $ttlSeconds;
+        }
+
         $this->buffer->push([
             'type' => 'cache',
             'occurred_at' => now()->toIso8601String(),
-            'payload' => [
-                'key' => $key,
-                'operation' => $operation,
-                'tags' => $tags,
-                'store' => $store,
-                'request_id' => $this->buffer->getRequestId(),
-            ],
+            'payload' => $payload,
         ]);
     }
 }

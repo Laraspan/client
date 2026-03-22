@@ -28,8 +28,17 @@ class RequestListener
         $slowThreshold = config('laraspan.thresholds.slow_request_ms', 1000);
         $nPlusOneThreshold = config('laraspan.thresholds.n_plus_one_threshold', 5);
 
+        $responseSize = null;
+        try {
+            $responseSize = strlen($event->response->getContent());
+        } catch (\Throwable) {
+            // Streaming responses may not support getContent()
+        }
+
         $payload = [
             'route' => $event->request->route()?->uri(),
+            'route_name' => $event->request->route()?->getName(),
+            'route_action' => $event->request->route()?->getActionName(),
             'uri' => $event->request->getRequestUri(),
             'method' => $event->request->method(),
             'status_code' => $event->response->getStatusCode(),
@@ -42,6 +51,7 @@ class RequestListener
             'has_n_plus_one' => $this->buffer->hasNPlusOne($nPlusOneThreshold),
             'server' => gethostname(),
             'request_size' => strlen($event->request->getContent()),
+            'response_size' => $responseSize,
             'user_ip' => $event->request->ip(),
         ];
 

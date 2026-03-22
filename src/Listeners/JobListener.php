@@ -46,6 +46,9 @@ class JobListener
             'payload' => [
                 'job_class' => $jobClass,
                 'queue' => $event->job->getQueue(),
+                'connection_name' => $event->connectionName,
+                'job_id' => $event->job->getJobId(),
+                'max_tries' => $event->job->payload()['maxTries'] ?? null,
                 'attempt' => $event->job->attempts(),
                 'duration_ms' => round($durationMs, 2),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
@@ -73,6 +76,9 @@ class JobListener
         $payload = [
             'job_class' => $jobClass,
             'queue' => $event->job->getQueue(),
+            'connection_name' => $event->connectionName,
+            'job_id' => $event->job->getJobId(),
+            'max_tries' => $event->job->payload()['maxTries'] ?? null,
             'attempt' => $event->job->attempts(),
             'duration_ms' => round($durationMs, 2),
             'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
@@ -86,6 +92,8 @@ class JobListener
             $payload['exception'] = [
                 'class' => get_class($event->exception),
                 'message' => $event->exception->getMessage(),
+                'file' => $event->exception->getFile(),
+                'line' => $event->exception->getLine(),
                 'fingerprint' => ExceptionFingerprinter::fingerprint($event->exception),
             ];
         }

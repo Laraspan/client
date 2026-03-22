@@ -28,7 +28,10 @@ class SchedulerListener
             'occurred_at' => now()->toIso8601String(),
             'payload' => [
                 'command' => $description,
+                'expression' => $event->task->expression,
+                'timezone' => $event->task->timezone?->getName() ?? null,
                 'duration_ms' => round($event->runtime * 1000, 2),
+                'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
                 'exit_code' => $event->task->exitCode,
                 'is_failed' => ($event->task->exitCode ?? 0) !== 0,
                 'request_id' => $this->buffer->getRequestId(),

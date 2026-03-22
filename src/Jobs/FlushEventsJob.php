@@ -89,6 +89,6 @@ class FlushEventsJob implements ShouldBeUnique, ShouldQueue
     protected function reQueueEvents(array $events): void
     {
         $encoded = array_map('json_encode', $events);
-        Redis::connection(config('laraspan.redis_connection', 'default'))->command('rpush', ['laraspan:events', ...$encoded]);
+        Redis::connection(config('laraspan.redis_connection', 'default'))->command('lpush', ['laraspan:events', ...$encoded]);
     }
 }

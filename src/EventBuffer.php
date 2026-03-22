@@ -23,6 +23,10 @@ class EventBuffer
 
     protected float $startTime;
 
+    protected int $droppedCount = 0;
+
+    protected bool $bufferFullWarningLogged = false;
+
     public function __construct(int $maxEvents = 5000)
     {
         $this->maxEvents = $maxEvents;
@@ -59,6 +63,15 @@ class EventBuffer
         }
 
         if (count($this->events) >= $this->maxEvents) {
+            $this->droppedCount++;
+
+            if (! $this->bufferFullWarningLogged) {
+                $this->bufferFullWarningLogged = true;
+                logger()->warning('LaraSpan: Event buffer is full, dropping events.', [
+                    'max_events' => $this->maxEvents,
+                ]);
+            }
+
             return;
         }
 
@@ -123,6 +136,8 @@ class EventBuffer
         $this->events = [];
         $this->queryPatterns = [];
         $this->paused = false;
+        $this->droppedCount = 0;
+        $this->bufferFullWarningLogged = false;
         $this->requestId = (string) Str::uuid();
         $this->startTime = microtime(true);
         $this->context = ['request_id' => $this->requestId];

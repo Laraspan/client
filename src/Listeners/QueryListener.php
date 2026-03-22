@@ -20,8 +20,9 @@ class QueryListener
 
         $payload = [
             'sql' => $event->sql,
-            'duration_ms' => $event->time,
+            'duration_ms' => round($event->time, 2),
             'connection' => $event->connectionName,
+            'db_driver' => $event->connectionName,
             'request_id' => $this->buffer->getRequestId(),
             'is_slow' => $event->time >= $slowThreshold,
             'normalized_sql' => $normalizedSql,

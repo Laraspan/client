@@ -20,6 +20,14 @@ class CommandListener
         'package:discover',
     ];
 
+    /** @var string[] Options to redact values for */
+    protected array $sensitiveOptions = [
+        'password',
+        'secret',
+        'token',
+        'key',
+    ];
+
     /** @var string[] Vendor command prefixes to ignore */
     protected array $vendorCommandPrefixes = [
         'horizon:',
@@ -54,6 +62,19 @@ class CommandListener
 
         $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
+        $arguments = $event->input?->getArguments() ?? [];
+        $arguments = array_filter($arguments, fn ($value) => $value !== null);
+
+        $options = $event->input?->getOptions() ?? [];
+        $options = array_filter($options, fn ($value) => $value !== null && $value !== false);
+        foreach ($this->sensitiveOptions as $sensitive) {
+            foreach ($options as $key => $value) {
+                if (stripos($key, $sensitive) !== false) {
+                    $options[$key] = '[REDACTED]';
+                }
+            }
+        }
+
         $this->buffer->push([
             'type' => 'command',
             'fingerprint' => sha1('command:'.$event->command),
@@ -62,6 +83,9 @@ class CommandListener
                 'command' => $event->command,
                 'exit_code' => $event->exitCode,
                 'duration_ms' => round($durationMs, 2),
+                'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
+                'arguments' => $arguments,
+                'options' => $options,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);

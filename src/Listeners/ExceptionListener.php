@@ -63,21 +63,36 @@ class ExceptionListener
 
         $request = request();
 
+        $payload = [
+            'class' => get_class($exception),
+            'message' => $exception->getMessage(),
+            'exception_code' => $exception->getCode(),
+            'log_level' => $event->level,
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+            'code_snippet' => $exceptionSourceCode,
+            'trace' => $trace,
+            'route' => $request?->route()?->uri(),
+            'uri' => $request?->getRequestUri(),
+            'user_id' => $request?->user()?->getAuthIdentifier(),
+            'request_id' => $this->buffer->getRequestId(),
+        ];
+
+        $previous = $exception->getPrevious();
+        if ($previous) {
+            $payload['previous_exception'] = [
+                'class' => get_class($previous),
+                'message' => $previous->getMessage(),
+                'file' => $previous->getFile(),
+                'line' => $previous->getLine(),
+            ];
+        }
+
         $this->buffer->push([
             'type' => 'exception',
             'fingerprint' => ExceptionFingerprinter::fingerprint($exception),
             'occurred_at' => now()->toIso8601String(),
-            'payload' => [
-                'class' => get_class($exception),
-                'message' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'code_snippet' => $exceptionSourceCode,
-                'trace' => $trace,
-                'route' => $request?->route()?->uri(),
-                'uri' => $request?->getRequestUri(),
-                'request_id' => $this->buffer->getRequestId(),
-            ],
+            'payload' => $payload,
         ]);
     }
 }

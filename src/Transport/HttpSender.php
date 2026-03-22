@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class HttpSender
 {
-    public const SDK_VERSION = '2.0.0';
+    public const SDK_VERSION = '2.1.0';
 
     public function __construct(
         protected string $baseUrl,

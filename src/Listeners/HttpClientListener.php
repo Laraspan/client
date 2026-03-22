@@ -30,6 +30,9 @@ class HttpClientListener
         $parsed = parse_url($uri);
 
         $host = $parsed['host'] ?? 'unknown';
+        $path = $parsed['path'] ?? '/';
+        $statusCode = $event->response->status();
+        $responseSize = $event->response->header('Content-Length');
 
         $this->buffer->push([
             'type' => 'http_client',
@@ -39,9 +42,12 @@ class HttpClientListener
                 'method' => $event->request->method(),
                 'url' => $uri,
                 'host' => $host,
-                'status_code' => $event->response->status(),
+                'path' => $path,
+                'status_code' => $statusCode,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'response_size' => $responseSize !== null ? (int) $responseSize : null,
                 'is_slow' => $durationMs !== null && $durationMs >= config('laraspan.thresholds.slow_http_client_ms', 1000),
+                'is_error' => $statusCode >= 400,
                 'is_failed' => false,
                 'request_id' => $this->buffer->getRequestId(),
             ],
@@ -59,6 +65,10 @@ class HttpClientListener
         $parsed = parse_url($uri);
 
         $host = $parsed['host'] ?? 'unknown';
+        $path = $parsed['path'] ?? '/';
+        $errorMessage = method_exists($event, 'getException')
+            ? $event->getException()?->getMessage()
+            : ($event->exception ?? null)?->getMessage();
 
         $this->buffer->push([
             'type' => 'http_client',
@@ -68,10 +78,14 @@ class HttpClientListener
                 'method' => $event->request->method(),
                 'url' => $uri,
                 'host' => $host,
+                'path' => $path,
                 'status_code' => 0,
                 'duration_ms' => $durationMs ? round($durationMs, 2) : null,
+                'response_size' => null,
                 'is_slow' => $durationMs !== null && $durationMs >= config('laraspan.thresholds.slow_http_client_ms', 1000),
+                'is_error' => true,
                 'is_failed' => true,
+                'error_message' => $errorMessage,
                 'request_id' => $this->buffer->getRequestId(),
             ],
         ]);
@@ -84,6 +98,6 @@ class HttpClientListener
 
     protected function requestKey(mixed $request): string
     {
-        return $request->method().' '.$request->url();
+        return spl_object_id($request).':'.$request->method().' '.$request->url();
     }
 }
