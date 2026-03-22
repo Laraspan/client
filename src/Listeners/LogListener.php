@@ -10,6 +10,26 @@ class LogListener
 {
     public function __construct(protected EventBuffer $buffer) {}
 
+    protected function resolveSource(): string
+    {
+        if (! app()->runningInConsole()) {
+            return 'request';
+        }
+
+        $argv = $_SERVER['argv'] ?? [];
+        $command = $argv[1] ?? '';
+
+        if (in_array($command, ['queue:work', 'queue:listen', 'horizon:work'])) {
+            return 'job';
+        }
+
+        if ($command === 'schedule:run' || $command === 'schedule:work') {
+            return 'scheduler';
+        }
+
+        return 'command';
+    }
+
     public function handle(MessageLogged $event): void
     {
         // Skip exception-level events with Throwable context — ExceptionListener handles those
@@ -27,6 +47,7 @@ class LogListener
             'payload' => [
                 'level' => $event->level,
                 'channel' => $event->channel ?? null,
+                'source' => $this->resolveSource(),
                 'message' => mb_substr($event->message, 0, 2000),
                 'context' => array_slice($context, 0, 20),
                 'request_id' => $this->buffer->getRequestId(),
