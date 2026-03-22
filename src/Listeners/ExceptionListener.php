@@ -66,7 +66,7 @@ class ExceptionListener
         $payload = [
             'class' => get_class($exception),
             'message' => $exception->getMessage(),
-            'exception_code' => $exception->getCode(),
+            'exception_code' => (int) $exception->getCode(),
             'log_level' => $event->level,
             'file' => $exception->getFile(),
             'line' => $exception->getLine(),

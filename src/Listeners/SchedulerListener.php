@@ -29,7 +29,9 @@ class SchedulerListener
             'payload' => [
                 'command' => $description,
                 'expression' => $event->task->expression,
-                'timezone' => $event->task->timezone ?? null,
+                'timezone' => $event->task->timezone instanceof \DateTimeZone
+                    ? $event->task->timezone->getName()
+                    : ($event->task->timezone ?? null),
                 'duration_ms' => round($event->runtime * 1000, 2),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
                 'exit_code' => $event->task->exitCode,

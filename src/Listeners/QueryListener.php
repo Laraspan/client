@@ -22,7 +22,7 @@ class QueryListener
             'sql' => $event->sql,
             'duration_ms' => round($event->time, 2),
             'connection' => $event->connectionName,
-            'db_driver' => $event->connectionName,
+            'db_driver' => $event->connection->getDriverName(),
             'request_id' => $this->buffer->getRequestId(),
             'is_slow' => $event->time >= $slowThreshold,
             'normalized_sql' => $normalizedSql,
