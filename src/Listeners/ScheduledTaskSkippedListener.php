@@ -2,27 +2,25 @@
 
 namespace LaraSpan\Client\Listeners;
 
-use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
 use LaraSpan\Client\EventBuffer;
 use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Transport\TransportInterface;
 
-class SchedulerListener
+class ScheduledTaskSkippedListener
 {
     public function __construct(
         protected EventBuffer $buffer,
         protected TransportInterface $transport,
     ) {}
 
-    public function handle(ScheduledTaskFinished $event): void
+    public function handle(ScheduledTaskSkipped $event): void
     {
         $description = $event->task->command ?? $event->task->description ?? '';
 
         if (str_contains($description, FlushEventsJob::class)) {
             return;
         }
-
-        $isFailed = ($event->task->exitCode ?? 0) !== 0;
 
         $this->buffer->push([
             'type' => 'scheduler',
@@ -34,11 +32,11 @@ class SchedulerListener
                 'timezone' => $event->task->timezone instanceof \DateTimeZone
                     ? $event->task->timezone->getName()
                     : ($event->task->timezone ?? null),
-                'status' => $isFailed ? 'failed' : 'processed',
-                'duration_ms' => round($event->runtime * 1000, 2),
-                'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
-                'exit_code' => $event->task->exitCode,
-                'is_failed' => $isFailed,
+                'status' => 'skipped',
+                'duration_ms' => 0,
+                'memory_mb' => 0,
+                'exit_code' => null,
+                'is_failed' => false,
                 'server' => gethostname(),
                 'without_overlapping' => (bool) $event->task->withoutOverlapping,
                 'on_one_server' => (bool) $event->task->onOneServer,

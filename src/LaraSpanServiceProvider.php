@@ -9,6 +9,7 @@ use Illuminate\Cache\Events\KeyWritten;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -41,6 +42,7 @@ use LaraSpan\Client\Listeners\MailListener;
 use LaraSpan\Client\Listeners\NotificationListener;
 use LaraSpan\Client\Listeners\QueryListener;
 use LaraSpan\Client\Listeners\RequestListener;
+use LaraSpan\Client\Listeners\ScheduledTaskSkippedListener;
 use LaraSpan\Client\Listeners\SchedulerListener;
 use LaraSpan\Client\Support\EventFilter;
 use LaraSpan\Client\Support\Redactor;
@@ -163,6 +165,7 @@ class LaraSpanServiceProvider extends ServiceProvider
 
         if ($monitors['scheduler'] ?? true) {
             Event::listen(ScheduledTaskFinished::class, SchedulerListener::class);
+            Event::listen(ScheduledTaskSkipped::class, ScheduledTaskSkippedListener::class);
         }
 
         if ($monitors['cache'] ?? true) {
