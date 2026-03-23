@@ -2,8 +2,6 @@
 
 namespace LaraSpan\Client;
 
-use Illuminate\Support\Str;
-
 class EventBuffer
 {
     /** @var array<int, array<string, mixed>> */
@@ -12,67 +10,71 @@ class EventBuffer
     /** @var array<string, mixed> */
     protected array $context = [];
 
-    protected string $requestId;
-
     protected int $maxEvents;
 
     /** @var array<string, int> */
     protected array $queryPatterns = [];
 
-    protected bool $paused = false;
-
-    protected float $startTime;
-
     protected int $droppedCount = 0;
 
     protected bool $bufferFullWarningLogged = false;
 
-    public function __construct(int $maxEvents = 5000)
+    protected ExecutionState $executionState;
+
+    public function __construct(ExecutionState $executionState, int $maxEvents = 5000)
     {
+        $this->executionState = $executionState;
         $this->maxEvents = $maxEvents;
-        $this->requestId = (string) Str::uuid();
-        $this->startTime = microtime(true);
-        $this->context = ['request_id' => $this->requestId];
+        $this->context = ['request_id' => $this->executionState->getRequestId()];
+    }
+
+    public function getExecutionState(): ExecutionState
+    {
+        return $this->executionState;
     }
 
     public function getStartTime(): float
     {
-        return $this->startTime;
+        return $this->executionState->getStartTime();
     }
 
     public function pause(): void
     {
-        $this->paused = true;
+        $this->executionState->pause();
     }
 
     public function resume(): void
     {
-        $this->paused = false;
+        $this->executionState->resume();
     }
 
     public function isPaused(): bool
     {
-        return $this->paused;
+        return $this->executionState->isPaused();
     }
 
     /** @param array<string, mixed> $event */
     public function push(array $event): void
     {
-        if ($this->paused) {
+        if ($this->executionState->isPaused()) {
             return;
         }
 
         if (count($this->events) >= $this->maxEvents) {
+            array_shift($this->events);
             $this->droppedCount++;
 
             if (! $this->bufferFullWarningLogged) {
                 $this->bufferFullWarningLogged = true;
-                logger()->warning('LaraSpan: Event buffer is full, dropping events.', [
-                    'max_events' => $this->maxEvents,
-                ]);
-            }
 
-            return;
+                try {
+                    logger()->warning('LaraSpan: Event buffer is full, dropping oldest events.', [
+                        'max_events' => $this->maxEvents,
+                    ]);
+                } catch (\Throwable) {
+                    // Silently ignore if logger is unavailable
+                }
+            }
         }
 
         $this->events[] = array_merge($this->context, $event);
@@ -83,7 +85,7 @@ class EventBuffer
     {
         $events = $this->events;
         $this->events = [];
-        $this->context = [];
+        $this->context = ['request_id' => $this->executionState->getRequestId()];
         $this->queryPatterns = [];
 
         return $events;
@@ -102,7 +104,7 @@ class EventBuffer
 
     public function getRequestId(): string
     {
-        return $this->requestId;
+        return $this->executionState->getRequestId();
     }
 
     public function trackQueryPattern(string $normalizedSql): void
@@ -131,15 +133,18 @@ class EventBuffer
         return array_sum($this->queryPatterns);
     }
 
-    public function reset(): void
+    public function resetEvents(): void
     {
         $this->events = [];
         $this->queryPatterns = [];
-        $this->paused = false;
         $this->droppedCount = 0;
         $this->bufferFullWarningLogged = false;
-        $this->requestId = (string) Str::uuid();
-        $this->startTime = microtime(true);
-        $this->context = ['request_id' => $this->requestId];
+    }
+
+    public function reset(): void
+    {
+        $this->executionState->reset();
+        $this->resetEvents();
+        $this->context = ['request_id' => $this->executionState->getRequestId()];
     }
 }

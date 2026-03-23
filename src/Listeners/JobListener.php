@@ -8,6 +8,7 @@ use Illuminate\Queue\Events\JobProcessing;
 use LaraSpan\Client\EventBuffer;
 use LaraSpan\Client\Jobs\FlushEventsJob;
 use LaraSpan\Client\Support\ExceptionFingerprinter;
+use LaraSpan\Client\Support\LazyValue;
 use LaraSpan\Client\Transport\TransportInterface;
 
 class JobListener
@@ -19,93 +20,112 @@ class JobListener
 
     public function handleProcessing(JobProcessing $event): void
     {
-        if ($this->isLaraSpanJob($event->job->resolveName())) {
-            $this->buffer->pause();
+        try {
+            if ($this->isLaraSpanJob($event->job->resolveName())) {
+                $this->buffer->pause();
 
-            return;
+                return;
+            }
+
+            $this->buffer->reset();
+
+            $payload = json_decode($event->job->getRawBody(), true);
+            $traceId = $payload['laraspan']['trace_id'] ?? null;
+            if ($traceId) {
+                $this->buffer->setContext(['parent_request_id' => $traceId]);
+            }
+
+            $userId = $payload['laraspan']['user_id'] ?? null;
+            if ($userId) {
+                $this->buffer->getExecutionState()->setUserId($userId);
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
-
-        $this->buffer->reset();
     }
 
     public function handleProcessed(JobProcessed $event): void
     {
-        if ($this->isLaraSpanJob($event->job->resolveName())) {
-            return;
+        try {
+            if ($this->isLaraSpanJob($event->job->resolveName())) {
+                return;
+            }
+
+            $startTime = $this->buffer->getStartTime();
+            $jobClass = $event->job->resolveName();
+
+            $this->buffer->push([
+                'type' => 'job',
+                'occurred_at' => now()->toIso8601String(),
+                'fingerprint' => sha1('job:'.$jobClass),
+                'payload' => [
+                    'job_class' => $jobClass,
+                    'queue' => $event->job->getQueue(),
+                    'connection_name' => $event->connectionName,
+                    'job_id' => $event->job->getJobId(),
+                    'max_tries' => $event->job->payload()['maxTries'] ?? null,
+                    'attempt' => $event->job->attempts(),
+                    'duration_ms' => new LazyValue(fn () => round((microtime(true) - $startTime) * 1000, 2)),
+                    'memory_mb' => new LazyValue(fn () => round(memory_get_peak_usage(true) / 1024 / 1024, 2)),
+                    'status' => 'processed',
+                    'is_failed' => false,
+                    'is_slow' => new LazyValue(fn () => (microtime(true) - $startTime) * 1000 >= config('laraspan.thresholds.slow_job_ms', 5000)),
+                    'request_id' => $this->buffer->getRequestId(),
+                ],
+            ]);
+
+            $this->flushBuffer();
+        } catch (\Throwable $e) {
+            report($e);
         }
+    }
 
-        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
-        $slowThreshold = config('laraspan.thresholds.slow_job_ms', 5000);
-        $isSlow = $durationMs >= $slowThreshold;
-        $jobClass = $event->job->resolveName();
+    public function handleFailed(JobFailed $event): void
+    {
+        try {
+            if ($this->isLaraSpanJob($event->job->resolveName())) {
+                return;
+            }
 
-        $this->buffer->push([
-            'type' => 'job',
-            'occurred_at' => now()->toIso8601String(),
-            'fingerprint' => sha1('job:'.$jobClass),
-            'payload' => [
+            $startTime = $this->buffer->getStartTime();
+            $jobClass = $event->job->resolveName();
+
+            $payload = [
                 'job_class' => $jobClass,
                 'queue' => $event->job->getQueue(),
                 'connection_name' => $event->connectionName,
                 'job_id' => $event->job->getJobId(),
                 'max_tries' => $event->job->payload()['maxTries'] ?? null,
                 'attempt' => $event->job->attempts(),
-                'duration_ms' => round($durationMs, 2),
-                'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
-                'status' => 'processed',
-                'is_failed' => false,
-                'is_slow' => $isSlow,
+                'duration_ms' => new LazyValue(fn () => round((microtime(true) - $startTime) * 1000, 2)),
+                'memory_mb' => new LazyValue(fn () => round(memory_get_peak_usage(true) / 1024 / 1024, 2)),
+                'status' => 'failed',
+                'is_failed' => true,
+                'is_slow' => new LazyValue(fn () => (microtime(true) - $startTime) * 1000 >= config('laraspan.thresholds.slow_job_ms', 5000)),
                 'request_id' => $this->buffer->getRequestId(),
-            ],
-        ]);
-
-        $this->flushBuffer();
-    }
-
-    public function handleFailed(JobFailed $event): void
-    {
-        if ($this->isLaraSpanJob($event->job->resolveName())) {
-            return;
-        }
-
-        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
-        $slowThreshold = config('laraspan.thresholds.slow_job_ms', 5000);
-        $isSlow = $durationMs >= $slowThreshold;
-        $jobClass = $event->job->resolveName();
-
-        $payload = [
-            'job_class' => $jobClass,
-            'queue' => $event->job->getQueue(),
-            'connection_name' => $event->connectionName,
-            'job_id' => $event->job->getJobId(),
-            'max_tries' => $event->job->payload()['maxTries'] ?? null,
-            'attempt' => $event->job->attempts(),
-            'duration_ms' => round($durationMs, 2),
-            'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
-            'status' => 'failed',
-            'is_failed' => true,
-            'is_slow' => $isSlow,
-            'request_id' => $this->buffer->getRequestId(),
-        ];
-
-        if ($event->exception) {
-            $payload['exception'] = [
-                'class' => get_class($event->exception),
-                'message' => $event->exception->getMessage(),
-                'file' => $event->exception->getFile(),
-                'line' => $event->exception->getLine(),
-                'fingerprint' => ExceptionFingerprinter::fingerprint($event->exception),
             ];
+
+            if ($event->exception) {
+                $payload['exception'] = [
+                    'class' => get_class($event->exception),
+                    'message' => $event->exception->getMessage(),
+                    'file' => $event->exception->getFile(),
+                    'line' => $event->exception->getLine(),
+                    'fingerprint' => ExceptionFingerprinter::fingerprint($event->exception),
+                ];
+            }
+
+            $this->buffer->push([
+                'type' => 'job',
+                'occurred_at' => now()->toIso8601String(),
+                'fingerprint' => sha1('job:'.$jobClass),
+                'payload' => $payload,
+            ]);
+
+            $this->flushBuffer();
+        } catch (\Throwable $e) {
+            report($e);
         }
-
-        $this->buffer->push([
-            'type' => 'job',
-            'occurred_at' => now()->toIso8601String(),
-            'fingerprint' => sha1('job:'.$jobClass),
-            'payload' => $payload,
-        ]);
-
-        $this->flushBuffer();
     }
 
     protected function isLaraSpanJob(string $jobClass): bool

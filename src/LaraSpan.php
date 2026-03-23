@@ -2,18 +2,20 @@
 
 namespace LaraSpan\Client;
 
+use Closure;
 use LaraSpan\Client\Support\Sampler;
+use LaraSpan\Client\Support\UserProvider;
 
 class LaraSpan
 {
     public static function pause(): void
     {
-        app(EventBuffer::class)->pause();
+        app(ExecutionState::class)->pause();
     }
 
     public static function resume(): void
     {
-        app(EventBuffer::class)->resume();
+        app(ExecutionState::class)->resume();
     }
 
     public static function ignore(callable $callback): mixed
@@ -35,5 +37,10 @@ class LaraSpan
     public static function dontSample(): void
     {
         app(Sampler::class)->setOverride(0.0);
+    }
+
+    public static function user(Closure $callback): void
+    {
+        app(UserProvider::class)->setResolver($callback);
     }
 }

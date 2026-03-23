@@ -28,6 +28,7 @@ it('ignore pauses during callback and resumes after', function () {
 
     $result = LaraSpan::ignore(function () use ($buffer) {
         $buffer->push(['type' => 'ignored', 'payload' => []]);
+
         return 'done';
     });
 

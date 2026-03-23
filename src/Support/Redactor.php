@@ -26,6 +26,9 @@ class Redactor
                 $data[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $data[$key] = $this->walk($value);
+            } elseif ($value instanceof \JsonSerializable) {
+                $resolved = $value->jsonSerialize();
+                $data[$key] = is_array($resolved) ? $this->walk($resolved) : $resolved;
             }
         }
 

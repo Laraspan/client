@@ -1,4 +1,4 @@
-# LaraSpan Client
+# LaraSpan Client: APM & Error Tracking for Laravel
 
 Monitoring client for Laravel applications. Collects exceptions, requests, queries, jobs, and more, then sends them to your self-hosted [LaraSpan](https://github.com/Laraspan) server.
 
@@ -8,7 +8,7 @@ Monitoring client for Laravel applications. Collects exceptions, requests, queri
 - Laravel 11, 12, or 13
 - Redis (recommended for queue transport)
 
-## Quick start
+## Installation
 
 ```bash
 composer require laraspan/client
@@ -20,6 +20,7 @@ Add your credentials to `.env`:
 ```env
 LARASPAN_TOKEN=your-app-api-token
 LARASPAN_URL=https://laraspan.yourdomain.com
+LARASPAN_ENABLED=true
 ```
 
 Verify the connection:
@@ -30,7 +31,7 @@ php artisan laraspan:test
 
 Get your API token from the LaraSpan dashboard under **Applications > New Application**.
 
-## How it works
+## How It Works
 
 ```mermaid
 flowchart LR
@@ -49,35 +50,27 @@ flowchart LR
 - **No extra processes.** Uses your existing queue workers.
 - **Works everywhere.** PHP-FPM, Octane, queue workers, CLI commands.
 
-## What gets monitored
+## What's Monitored
 
 | Monitor | Captures |
 |---------|----------|
-| Exceptions | Class, message, stack trace, source code context, fingerprint for deduplication |
-| Requests | Route, method, status, duration, memory, query count, N+1 detection |
-| Queries | SQL (normalized), duration, connection, slow query flagging, bindings (opt-in) |
-| Jobs | Class, queue, attempt, duration, memory, status, failure details |
-| Scheduler | Command, duration, exit code |
-| Cache | Key, operation (hit/miss/write/forget), store, tags |
-| Mail | Subject, recipients, sender, duration |
-| Notifications | Channel, notifiable type/id, notification class |
-| HTTP Client | Method, URL, host, status, duration, slow flagging |
-| Commands | Artisan command name, exit code, duration |
-| Logs | Level, message (2 000 char max), context (20 entries max) |
+| **Exceptions** | Class, message, stack trace, source code context, fingerprint for deduplication |
+| **Requests** | Route, method, status, duration, memory, query count, N+1 detection, lifecycle stage durations |
+| **Queries** | SQL (normalized), duration, connection, slow query flagging, bindings (opt-in) |
+| **Jobs** | Class, queue, attempt, duration, memory, status, failure details, parent trace propagation |
+| **Commands** | Artisan command name, exit code, duration |
+| **Scheduler** | Command, duration, exit code |
+| **Cache** | Key, operation (hit/miss/write/forget), store, tags |
+| **Mail** | Subject, recipients, sender, duration |
+| **Notifications** | Channel, notifiable type/id, notification class |
+| **HTTP Client** | Method, URL, host, status, duration, slow flagging |
+| **Logs** | Level, message (2,000 char max), context (20 entries max) |
 
-Every monitor can be toggled individually. See [Monitors](#monitors) below.
+Every monitor can be toggled individually via config or env var (e.g., `LARASPAN_MONITOR_QUERIES=false`).
 
 ## Configuration
 
 All configuration lives in `config/laraspan.php`, published during install.
-
-### Enable / disable
-
-```env
-LARASPAN_ENABLED=false
-```
-
-Set to `false` to disable all monitoring without removing the package.
 
 ### Transport
 
@@ -90,28 +83,27 @@ LARASPAN_TRANSPORT=queue
 | `queue` (default) | Events buffered in Redis, flushed by a background job | < 0.5 ms | Redis, queue worker |
 | `inline` | Events sent via HTTP on request terminate | 5-50 ms | None beyond Guzzle |
 
-### Monitors
+Additional transport settings:
 
 ```php
-// config/laraspan.php
-'monitors' => [
-    'exceptions'   => true,
-    'requests'     => true,
-    'queries'      => true,
-    'jobs'         => true,
-    'scheduler'    => true,
-    'cache'        => true,
-    'mail'         => true,
-    'notification' => true,
-    'http_client'  => true,
-    'command'      => true,
-    'log'          => true,
+'redis_connection'  => env('LARASPAN_REDIS_CONNECTION', 'default'),
+'transport_timeout' => env('LARASPAN_TRANSPORT_TIMEOUT', 5),
+'max_queue_size'    => env('LARASPAN_MAX_QUEUE_SIZE', 50000),
+```
+
+### Thresholds
+
+```php
+'thresholds' => [
+    'slow_request_ms'      => 1000,  // flag requests slower than 1 s
+    'slow_query_ms'        => 100,   // flag queries slower than 100 ms
+    'slow_job_ms'          => 5000,  // flag jobs slower than 5 s
+    'slow_http_client_ms'  => 1000,  // flag HTTP client calls slower than 1 s
+    'n_plus_one_threshold' => 5,     // flag after 5 repeated query patterns
 ],
 ```
 
-Each monitor can also be toggled via environment variable, e.g. `LARASPAN_MONITOR_QUERIES=false`.
-
-### Buffer tuning
+### Buffer Tuning
 
 ```php
 'buffer' => [
@@ -121,86 +113,7 @@ Each monitor can also be toggled via environment variable, e.g. `LARASPAN_MONITO
 ],
 ```
 
-### Performance thresholds
-
-```php
-'thresholds' => [
-    'slow_request_ms'      => 1000,  // flag requests slower than 1 s
-    'slow_query_ms'        => 100,   // flag queries slower than 100 ms
-    'slow_job_ms'          => 5000,  // flag jobs slower than 5 s
-    'n_plus_one_threshold' => 5,     // flag after 5 repeated query patterns
-],
-```
-
-### Sampling
-
-Reduce event volume on high-traffic applications:
-
-```php
-'sampling' => [
-    'request' => 1.0,   // 1.0 = 100 %, 0.1 = 10 %
-    'query'   => 1.0,
-    'job'     => 1.0,
-    'cache'   => 1.0,
-    'mail'    => 1.0,
-    // ... per-type rates
-],
-```
-
-Exceptions are always captured regardless of sampling rate.
-
-#### Per-route sampling
-
-```php
-use LaraSpan\Client\Middleware\Sample;
-
-Route::post('/webhooks', WebhookController::class)
-    ->middleware(Sample::rate(0.1));   // 10 %
-
-Route::get('/health', HealthController::class)
-    ->middleware(Sample::never());    // never sample
-```
-
-### Ignored paths
-
-Skip monitoring for specific request paths (health checks, internal endpoints, etc.):
-
-```php
-'ignore_paths' => [
-    'up',
-    'horizon/*',
-],
-```
-
-### Ignored exceptions
-
-```php
-'ignore_exceptions' => [
-    \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
-    \Illuminate\Auth\AuthenticationException::class,
-    \Illuminate\Validation\ValidationException::class,
-],
-```
-
-### Redaction
-
-Sensitive fields are replaced with `[REDACTED]` before data leaves your application:
-
-```php
-'redact' => [
-    'password', 'password_confirmation', 'secret', 'token',
-    'api_key', 'authorization', 'credit_card', 'card_number',
-    'cvv', 'ssn',
-],
-
-'redact_headers' => [
-    // additional header names to redact
-],
-```
-
-Matching is recursive and case-insensitive across all nested payloads.
-
-### Capture options
+### Capture Options
 
 ```php
 'capture' => [
@@ -214,50 +127,141 @@ Matching is recursive and case-insensitive across all nested payloads.
 ],
 ```
 
-### Vendor event filtering
+### Redaction
 
-By default, events originating from vendor packages (framework internals, third-party packages) are excluded:
+Sensitive fields are replaced with `[REDACTED]` before data leaves your application. Matching is recursive and case-insensitive across all nested payloads.
+
+```php
+'redact' => [
+    'password', 'password_confirmation', 'secret', 'token',
+    'api_key', 'authorization', 'credit_card', 'card_number',
+    'cvv', 'ssn',
+],
+
+'redact_headers' => [
+    // additional header names beyond the built-in list
+],
+```
+
+### Ignored Paths
+
+```php
+'ignore_paths' => [
+    'up',
+    'horizon/*',
+],
+```
+
+### Ignored Exceptions
+
+```php
+'ignore_exceptions' => [
+    \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
+    \Illuminate\Auth\AuthenticationException::class,
+    \Illuminate\Validation\ValidationException::class,
+],
+```
+
+### Vendor Event Filtering
+
+Exclude events originating from vendor packages (framework internals, third-party packages):
 
 ```php
 'ignore_vendor_events' => true,
 ```
 
-## Custom event filtering
+## Sampling
 
-Register callbacks to reject specific events before they are buffered:
+Reduce event volume on high-traffic applications. Rates range from `0.0` (drop all) to `1.0` (keep all). Exceptions always bypass sampling.
+
+### Global Rates
 
 ```php
-use LaraSpan\Client\Support\EventFilter;
-
-app(EventFilter::class)
-    ->rejectQueries(fn (array $event) => str_starts_with($event['sql'], 'PRAGMA'))
-    ->rejectJobs(fn (array $event) => $event['job'] === 'App\\Jobs\\Heartbeat')
-    ->rejectCacheKeys(fn (array $event) => str_starts_with($event['key'], 'telescope:'))
-    ->rejectLogs(fn (array $event) => $event['level'] === 'debug');
+'sampling' => [
+    'request'      => 1.0,
+    'query'        => 1.0,
+    'job'          => 1.0,
+    'scheduler'    => 1.0,
+    'cache'        => 1.0,
+    'mail'         => 1.0,
+    'notification' => 1.0,
+    'http_client'  => 1.0,
+    'command'      => 1.0,
+    'log'          => 1.0,
+],
 ```
 
-Available filter methods: `rejectQueries`, `rejectJobs`, `rejectCacheKeys`, `rejectMail`, `rejectNotifications`, `rejectLogs`, `rejectHttpClient`, `rejectCommands`.
+Each rate can be set via env var, e.g., `LARASPAN_SAMPLE_REQUEST=0.1`.
 
-## Programmatic control
+### Per-Route Sampling
+
+Use the `Sample` middleware to override the rate for specific routes:
+
+```php
+use LaraSpan\Client\Middleware\Sample;
+
+Route::post('/webhooks', WebhookController::class)
+    ->middleware(Sample::rate(0.1));   // 10 %
+
+Route::get('/health', HealthController::class)
+    ->middleware(Sample::never());    // never sample
+
+Route::get('/checkout', CheckoutController::class)
+    ->middleware(Sample::always());   // always sample
+```
+
+### Per-Request Sampling
+
+Override sampling programmatically within a request:
 
 ```php
 use LaraSpan\Client\LaraSpan;
 
-// Temporarily pause/resume capture
-LaraSpan::pause();
-LaraSpan::resume();
-
-// Execute code without capturing
-LaraSpan::ignore(function () {
-    // this won't be monitored
-});
-
-// Override sampling for current request
 LaraSpan::sample(0.5);    // 50 %
 LaraSpan::dontSample();   // 0 %
 ```
 
-## Multi-tenant applications
+### Exception Bypass
+
+Exceptions are **always captured** regardless of the sampling rate. If a request is sampled out, its non-exception events are dropped but any exceptions thrown during that request are still recorded.
+
+## User Tracking
+
+LaraSpan automatically resolves the authenticated user (id, name, email) from Laravel's auth system and attaches it to all events in the current request.
+
+### Custom Resolver
+
+Override the default resolution logic in a service provider:
+
+```php
+use LaraSpan\Client\LaraSpan;
+
+LaraSpan::user(function ($user) {
+    return [
+        'id'    => $user->id,
+        'name'  => $user->full_name,
+        'email' => $user->company_email,
+    ];
+});
+```
+
+The resolver receives the `Authenticatable` instance and should return an array with `id`, and optionally `name` and `email`.
+
+### User Propagation Through Jobs
+
+When a job is dispatched, the current `user_id` is injected into the job payload alongside the `trace_id`. When the job runs, LaraSpan restores the user context automatically, so job events are attributed to the user who triggered them.
+
+## Context Propagation
+
+LaraSpan propagates trace context from HTTP requests into queued jobs:
+
+1. When a job is dispatched during a request, LaraSpan injects `trace_id` (the current `request_id`) and `user_id` into the job payload.
+2. When the job executes, the listener extracts `trace_id` and sets it as `parent_request_id` in the job's event context.
+3. The `user_id` is restored on the `ExecutionState`, so the job's events carry the originating user.
+
+This allows you to trace a complete request-to-job chain in the LaraSpan dashboard.
+
+### Multi-Tenant Context
 
 Attach tenant context to all events in the current request:
 
@@ -270,23 +274,83 @@ app(EventBuffer::class)->setContext([
 ]);
 ```
 
-Context data is included with every event sent from that request.
+## Lifecycle Stages
 
-## Deployment tracking
+LaraSpan tracks 7 execution stages for HTTP requests, giving you a breakdown of where time is spent:
 
-Record deployments so LaraSpan can correlate error spikes and performance changes:
+| Stage | Description |
+|-------|-------------|
+| `bootstrap` | Framework boot, service provider registration |
+| `before_middleware` | Global and route middleware (before controller) |
+| `action` | Controller / route handler execution |
+| `render` | Response rendering (views, JSON serialization) |
+| `after_middleware` | Middleware running after the response |
+| `sending` | Response being sent to the client |
+| `terminating` | Terminable middleware and `terminate` callbacks |
 
-```bash
-php artisan laraspan:deploy --version=1.2.0
+For Artisan commands, a subset is used: `bootstrap`, `action`, `terminating`.
+
+Stage durations are included in request events and visible in the LaraSpan dashboard as a waterfall breakdown.
+
+## Filtering & Redaction
+
+### EventFilter API
+
+Register callbacks to reject specific events before they are buffered:
+
+```php
+use LaraSpan\Client\Support\EventFilter;
+
+app(EventFilter::class)
+    ->rejectQueries(fn (array $event) => str_starts_with($event['sql'], 'PRAGMA'))
+    ->rejectJobs(fn (array $event) => $event['job'] === 'App\\Jobs\\Heartbeat')
+    ->rejectCacheKeys(fn (array $event) => str_starts_with($event['key'], 'telescope:'))
+    ->rejectLogs(fn (array $event) => $event['level'] === 'debug')
+    ->rejectMail(fn (array $event) => $event['subject'] === 'Test')
+    ->rejectNotifications(fn (array $event) => $event['channel'] === 'database')
+    ->rejectHttpClient(fn (array $event) => str_contains($event['url'], 'internal'))
+    ->rejectCommands(fn (array $event) => $event['command'] === 'schedule:run');
 ```
 
-The command auto-detects the current git commit and deployer (system user). You can also specify them explicitly:
+### Header Redaction
 
-```bash
-php artisan laraspan:deploy --version=1.2.0 --commit=abc1234 --deployer="CI/CD"
+Headers are redacted with scheme-aware logic:
+
+- **Authorization/Proxy-Authorization**: Preserves the auth scheme (e.g., `Bearer [42 bytes redacted]`)
+- **Cookie/Set-Cookie**: Preserves cookie names, redacts values (e.g., `session=[32 bytes redacted]`)
+- **Other sensitive headers**: Full value replaced with `[N bytes redacted]`
+
+Built-in sensitive headers: `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-CSRF-Token`, `X-XSRF-Token`. Add more via `redact_headers` config.
+
+### Payload Redaction
+
+Request body fields matching the `redact` list are recursively replaced with `[REDACTED]`. Matching is case-insensitive and works through nested arrays/objects.
+
+## Public API
+
+```php
+use LaraSpan\Client\LaraSpan;
+
+// Temporarily pause/resume event capture
+LaraSpan::pause();
+LaraSpan::resume();
+
+// Execute code without capturing any events
+LaraSpan::ignore(function () {
+    // this won't be monitored
+});
+
+// Override sampling for the current request
+LaraSpan::sample(0.5);    // 50 %
+LaraSpan::dontSample();   // 0 %
+
+// Set custom user resolver
+LaraSpan::user(function ($user) {
+    return ['id' => $user->id, 'name' => $user->display_name];
+});
 ```
 
-## Artisan commands
+## Artisan Commands
 
 | Command | Description |
 |---------|-------------|
@@ -295,15 +359,29 @@ php artisan laraspan:deploy --version=1.2.0 --commit=abc1234 --deployer="CI/CD"
 | `laraspan:flush` | Manually flush buffered events from Redis |
 | `laraspan:deploy` | Record a deployment with version, commit, and deployer |
 
-## Octane compatibility
+### Deployment Tracking
 
-LaraSpan resets its in-memory event buffer on every Octane request, so state never leaks between requests. No additional configuration is needed.
+Record deployments so LaraSpan can correlate error spikes and performance changes:
 
-## Self-monitoring protection
+```bash
+php artisan laraspan:deploy --version=1.2.0
+```
+
+The command auto-detects the current git commit and deployer (system user):
+
+```bash
+php artisan laraspan:deploy --version=1.2.0 --commit=abc1234 --deployer="CI/CD"
+```
+
+## Octane Support
+
+LaraSpan resets its `ExecutionState` and `EventBuffer` on every Octane request, so state never leaks between requests. No additional configuration is needed.
+
+## Self-Monitoring Protection
 
 When your LaraSpan server is itself a Laravel application using this client, the package detects requests to `/api/ingest` and `/api/deploy` and pauses monitoring to prevent recursive loops.
 
-## Local development
+## Local Development
 
 ```env
 LARASPAN_ENABLED=true
@@ -311,27 +389,41 @@ LARASPAN_URL=http://localhost:8000
 LARASPAN_TRANSPORT=inline
 ```
 
-Use `inline` transport during development to avoid needing Redis and a queue worker. Disable entirely with `LARASPAN_ENABLED=false`.
+Use `inline` transport during development to avoid needing Redis and a queue worker.
 
-## Environment variables
+## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LARASPAN_ENABLED` | `true` | Enable or disable monitoring |
-| `LARASPAN_TOKEN` | — | API token from LaraSpan dashboard |
+| `LARASPAN_TOKEN` | -- | API token from LaraSpan dashboard |
 | `LARASPAN_URL` | `http://localhost:8080` | LaraSpan server URL |
 | `LARASPAN_TRANSPORT` | `queue` | `queue` or `inline` |
+| `LARASPAN_REDIS_CONNECTION` | `default` | Redis connection name for queue transport |
+| `LARASPAN_TRANSPORT_TIMEOUT` | `5` | HTTP timeout in seconds |
+| `LARASPAN_MAX_QUEUE_SIZE` | `50000` | Max events in Redis buffer before trimming |
 | `LARASPAN_FLUSH_THRESHOLD` | `100` | Events in Redis before dispatching flush job |
 | `LARASPAN_MAX_BATCH_SIZE` | `500` | Max events per HTTP POST |
+| `LARASPAN_MAX_EVENTS_PER_REQUEST` | `5000` | Safety cap per single request |
 | `LARASPAN_SLOW_REQUEST_MS` | `1000` | Slow request threshold (ms) |
 | `LARASPAN_SLOW_QUERY_MS` | `100` | Slow query threshold (ms) |
 | `LARASPAN_SLOW_JOB_MS` | `5000` | Slow job threshold (ms) |
+| `LARASPAN_SLOW_HTTP_CLIENT_MS` | `1000` | Slow HTTP client threshold (ms) |
 | `LARASPAN_N_PLUS_ONE_THRESHOLD` | `5` | N+1 query detection threshold |
 | `LARASPAN_CAPTURE_HEADERS` | `false` | Capture request headers |
 | `LARASPAN_CAPTURE_PAYLOAD` | `false` | Capture request body |
 | `LARASPAN_CAPTURE_SOURCE_CODE` | `true` | Capture code context for exceptions |
 | `LARASPAN_CAPTURE_BINDINGS` | `false` | Capture SQL bindings |
 | `LARASPAN_IGNORE_VENDOR_EVENTS` | `true` | Exclude vendor package events |
+| `LARASPAN_REDACT_HEADERS` | -- | Comma-separated additional header names to redact |
+| `LARASPAN_SAMPLE_*` | `1.0` | Per-type sampling rates (e.g., `LARASPAN_SAMPLE_REQUEST`) |
+| `LARASPAN_MONITOR_*` | `true` | Per-type monitor toggles (e.g., `LARASPAN_MONITOR_CACHE`) |
+
+## Testing
+
+```bash
+vendor/bin/pest
+```
 
 ## License
 

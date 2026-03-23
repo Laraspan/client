@@ -1,5 +1,6 @@
 <?php
 
+use LaraSpan\Client\Support\LazyValue;
 use LaraSpan\Client\Support\Redactor;
 
 it('redacts matching keys', function () {
@@ -60,4 +61,14 @@ it('handles empty data', function () {
     $redactor = new Redactor(['password']);
 
     expect($redactor->redact([]))->toBe([]);
+});
+
+it('resolves JsonSerializable objects before redacting', function () {
+    $redactor = new Redactor(['password']);
+    $lazy = new LazyValue(fn () => ['password' => 'secret', 'name' => 'john']);
+
+    $result = $redactor->redact(['data' => $lazy]);
+
+    expect($result['data']['password'])->toBe('[REDACTED]');
+    expect($result['data']['name'])->toBe('john');
 });

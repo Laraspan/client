@@ -24,22 +24,38 @@ class CacheListener
 
     public function handleHit(CacheHit $event): void
     {
-        $this->record($event->key, 'hit', $event->tags ?? [], $event->storeName ?? 'default');
+        try {
+            $this->record($event->key, 'hit', $event->tags ?? [], $event->storeName ?? 'default');
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function handleMissed(CacheMissed $event): void
     {
-        $this->record($event->key, 'miss', $event->tags ?? [], $event->storeName ?? 'default');
+        try {
+            $this->record($event->key, 'miss', $event->tags ?? [], $event->storeName ?? 'default');
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function handleWritten(KeyWritten $event): void
     {
-        $this->record($event->key, 'write', $event->tags ?? [], $event->storeName ?? 'default', $event->seconds ?? null);
+        try {
+            $this->record($event->key, 'write', $event->tags ?? [], $event->storeName ?? 'default', $event->seconds ?? null);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function handleForgotten(KeyForgotten $event): void
     {
-        $this->record($event->key, 'forget', $event->tags ?? [], $event->storeName ?? 'default');
+        try {
+            $this->record($event->key, 'forget', $event->tags ?? [], $event->storeName ?? 'default');
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     protected function isVendorKey(string $key): bool

@@ -2,6 +2,7 @@
 
 namespace LaraSpan\Client;
 
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\KeyForgotten;
@@ -26,6 +27,7 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use LaraSpan\Client\Console\Commands\DeployCommand;
 use LaraSpan\Client\Console\Commands\FlushCommand;
@@ -48,6 +50,7 @@ use LaraSpan\Client\Support\EventFilter;
 use LaraSpan\Client\Support\Redactor;
 use LaraSpan\Client\Support\Sampler;
 use LaraSpan\Client\Support\SelfMonitoringGuard;
+use LaraSpan\Client\Support\UserProvider;
 use LaraSpan\Client\Transport\InlineTransport;
 use LaraSpan\Client\Transport\QueueTransport;
 use LaraSpan\Client\Transport\TransportInterface;
@@ -59,9 +62,14 @@ class LaraSpanServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/laraspan.php', 'laraspan');
 
+        $this->app->singleton(ExecutionState::class, function () {
+            return new ExecutionState;
+        });
+
         $this->app->singleton(EventBuffer::class, function ($app) {
             return new EventBuffer(
-                $app['config']->get('laraspan.buffer.max_events_per_request', 5000)
+                $app->make(ExecutionState::class),
+                config('laraspan.buffer.max_events_per_request', 5000)
             );
         });
 
@@ -98,6 +106,10 @@ class LaraSpanServiceProvider extends ServiceProvider
         $this->app->singleton(MailListener::class);
         $this->app->singleton(NotificationListener::class);
 
+        $this->app->singleton(UserProvider::class, function () {
+            return new UserProvider;
+        });
+
         $this->app->singleton(SelfMonitoringGuard::class, function ($app) {
             return new SelfMonitoringGuard(
                 laraSpanUrl: rtrim($app['config']->get('laraspan.url', ''), '/'),
@@ -125,8 +137,11 @@ class LaraSpanServiceProvider extends ServiceProvider
             return;
         }
 
+        ExceptionListener::reserveMemory();
+
         $this->registerMiddleware();
         $this->registerListeners();
+        $this->registerQueuePayloadPropagation();
         $this->registerTerminatingCallback();
         $this->registerScheduledFlush();
         $this->registerOctaneSupport();
@@ -199,6 +214,30 @@ class LaraSpanServiceProvider extends ServiceProvider
         if ($monitors['log'] ?? true) {
             Event::listen(MessageLogged::class, LogListener::class);
         }
+
+        Event::listen(Logout::class, function ($event) {
+            try {
+                if ($event->user) {
+                    app(UserProvider::class)->remember($event->user);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
+    protected function registerQueuePayloadPropagation(): void
+    {
+        Queue::createPayloadUsing(function (string $connectionName, string $queue, array $payload) {
+            $buffer = app(EventBuffer::class);
+
+            return [
+                'laraspan' => [
+                    'trace_id' => $buffer->getRequestId(),
+                    'user_id' => $buffer->getExecutionState()->getUserId(),
+                ],
+            ];
+        });
     }
 
     protected function registerTerminatingCallback(): void
@@ -209,6 +248,13 @@ class LaraSpanServiceProvider extends ServiceProvider
 
             if ($guard->isSelfRequest()) {
                 return;
+            }
+
+            /** @var UserProvider $userProvider */
+            $userProvider = $this->app->make(UserProvider::class);
+            $user = $userProvider->resolve();
+            if ($user) {
+                $this->app->make(ExecutionState::class)->setUserId((string) $user['id']);
             }
 
             /** @var EventBuffer $buffer */
@@ -269,25 +315,17 @@ class LaraSpanServiceProvider extends ServiceProvider
         }
 
         Event::listen(RequestReceived::class, function () {
-            LaraSpanMiddleware::resetLifecycle();
+            $state = $this->app->make(ExecutionState::class);
+            $state->reset();
 
-            /** @var EventBuffer $buffer */
             $buffer = $this->app->make(EventBuffer::class);
-            $buffer->reset();
+            $buffer->resetEvents();
 
-            // Reset pending arrays to prevent Octane memory leaks
-            $this->app->make(MailListener::class)->resetPending();
-            $this->app->make(NotificationListener::class)->resetPending();
-            $this->app->make(HttpClientListener::class)->resetPending();
+            $sampler = $this->app->make(Sampler::class);
+            $sampler->setOverride(null);
 
-            // Reset sampler override from previous request
-            $this->app->make(Sampler::class)->setOverride(null);
-
-            /** @var SelfMonitoringGuard $guard */
-            $guard = $this->app->make(SelfMonitoringGuard::class);
-
-            if ($guard->isSelfRequest()) {
-                $buffer->pause();
+            if ($this->app->make(SelfMonitoringGuard::class)->isSelfRequest()) {
+                $state->pause();
             }
         });
     }

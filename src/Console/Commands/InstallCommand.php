@@ -43,7 +43,7 @@ class InstallCommand extends Command
 
         $stubs = "\n# LaraSpan Monitoring\nLARASPAN_TOKEN=\nLARASPAN_URL=http://localhost:8080\nLARASPAN_TRANSPORT=queue\n";
 
-        file_put_contents($path, $contents . $stubs);
+        file_put_contents($path, $contents.$stubs);
 
         $this->line("Updated {$file} with LaraSpan environment variables.");
     }

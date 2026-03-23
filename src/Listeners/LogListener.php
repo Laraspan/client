@@ -32,26 +32,30 @@ class LogListener
 
     public function handle(MessageLogged $event): void
     {
-        // Skip exception-level events with Throwable context — ExceptionListener handles those
-        if (in_array($event->level, ['error', 'critical', 'emergency'])
-            && ($event->context['exception'] ?? null) instanceof Throwable) {
-            return;
+        try {
+            // Skip exception-level events with Throwable context — ExceptionListener handles those
+            if (in_array($event->level, ['error', 'critical', 'emergency'])
+                && ($event->context['exception'] ?? null) instanceof Throwable) {
+                return;
+            }
+
+            $context = $event->context;
+            unset($context['exception']); // Remove exception objects from context
+
+            $this->buffer->push([
+                'type' => 'log',
+                'occurred_at' => now()->toIso8601String(),
+                'payload' => [
+                    'level' => $event->level,
+                    'channel' => $event->channel ?? null,
+                    'source' => $this->resolveSource(),
+                    'message' => mb_substr($event->message, 0, 2000),
+                    'context' => array_slice($context, 0, 20),
+                    'request_id' => $this->buffer->getRequestId(),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
-
-        $context = $event->context;
-        unset($context['exception']); // Remove exception objects from context
-
-        $this->buffer->push([
-            'type' => 'log',
-            'occurred_at' => now()->toIso8601String(),
-            'payload' => [
-                'level' => $event->level,
-                'channel' => $event->channel ?? null,
-                'source' => $this->resolveSource(),
-                'message' => mb_substr($event->message, 0, 2000),
-                'context' => array_slice($context, 0, 20),
-                'request_id' => $this->buffer->getRequestId(),
-            ],
-        ]);
     }
 }

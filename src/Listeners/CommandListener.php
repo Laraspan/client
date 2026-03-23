@@ -47,53 +47,61 @@ class CommandListener
 
     public function handleStarting(CommandStarting $event): void
     {
-        if ($this->shouldIgnore($event->command)) {
-            return;
-        }
+        try {
+            if ($this->shouldIgnore($event->command)) {
+                return;
+            }
 
-        $this->buffer->reset();
+            $this->buffer->reset();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function handleFinished(CommandFinished $event): void
     {
-        if ($this->shouldIgnore($event->command)) {
-            return;
-        }
+        try {
+            if ($this->shouldIgnore($event->command)) {
+                return;
+            }
 
-        $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
+            $durationMs = (microtime(true) - $this->buffer->getStartTime()) * 1000;
 
-        $arguments = $event->input?->getArguments() ?? [];
-        $arguments = array_filter($arguments, fn ($value) => $value !== null);
+            $arguments = $event->input?->getArguments() ?? [];
+            $arguments = array_filter($arguments, fn ($value) => $value !== null);
 
-        $options = $event->input?->getOptions() ?? [];
-        $options = array_filter($options, fn ($value) => $value !== null && $value !== false);
-        foreach ($this->sensitiveOptions as $sensitive) {
-            foreach ($options as $key => $value) {
-                if (stripos($key, $sensitive) !== false) {
-                    $options[$key] = '[REDACTED]';
+            $options = $event->input?->getOptions() ?? [];
+            $options = array_filter($options, fn ($value) => $value !== null && $value !== false);
+            foreach ($this->sensitiveOptions as $sensitive) {
+                foreach ($options as $key => $value) {
+                    if (stripos($key, $sensitive) !== false) {
+                        $options[$key] = '[REDACTED]';
+                    }
                 }
             }
-        }
 
-        $this->buffer->push([
-            'type' => 'command',
-            'fingerprint' => sha1('command:'.$event->command),
-            'occurred_at' => now()->toIso8601String(),
-            'payload' => [
-                'command' => $event->command,
-                'exit_code' => $event->exitCode,
-                'duration_ms' => round($durationMs, 2),
-                'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
-                'arguments' => $arguments,
-                'options' => $options,
-                'request_id' => $this->buffer->getRequestId(),
-            ],
-        ]);
+            $this->buffer->push([
+                'type' => 'command',
+                'fingerprint' => sha1('command:'.$event->command),
+                'occurred_at' => now()->toIso8601String(),
+                'payload' => [
+                    'command' => $event->command,
+                    'exit_code' => $event->exitCode,
+                    'duration_ms' => round($durationMs, 2),
+                    'memory_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
+                    'arguments' => $arguments,
+                    'options' => $options,
+                    'request_id' => $this->buffer->getRequestId(),
+                ],
+            ]);
 
-        $events = $this->buffer->flush();
+            $events = $this->buffer->flush();
 
-        if (! empty($events)) {
-            $this->transport->send($events);
+            if (! empty($events)) {
+                $this->transport->send($events);
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

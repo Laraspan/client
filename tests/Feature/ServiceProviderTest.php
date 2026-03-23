@@ -1,6 +1,7 @@
 <?php
 
 use LaraSpan\Client\EventBuffer;
+use LaraSpan\Client\ExecutionState;
 use LaraSpan\Client\LaraSpanServiceProvider;
 use LaraSpan\Client\Support\Redactor;
 use LaraSpan\Client\Support\Sampler;
@@ -44,4 +45,11 @@ it('does not register listeners when disabled', function () {
     // The listeners should not have been registered a second time
     // (this mainly tests that boot() returns early)
     expect(true)->toBeTrue();
+});
+
+it('registers ExecutionState as singleton', function () {
+    $state1 = app(ExecutionState::class);
+    $state2 = app(ExecutionState::class);
+
+    expect($state1)->toBe($state2);
 });
